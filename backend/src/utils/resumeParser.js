@@ -2,16 +2,12 @@
  * Resume Parsing Utility
  * 
  * Handles text extraction from:
- * - PDF files (using pdf-parse)
+ * - PDF files (using pdf-parse v1.x)
  * - DOCX files (using mammoth)
  */
 
 const fs = require('fs');
-
-// Polyfill for pdf-parse (fixes DOMMatrix is not defined error in Node.js)
-if (!global.DOMMatrix) {
-    global.DOMMatrix = class DOMMatrix { };
-}
+const path = require('path');
 
 const pdf = require('pdf-parse');
 const mammoth = require('mammoth');
@@ -24,10 +20,13 @@ const { ApiError } = require('../middlewares/errorHandler');
  */
 const parseResume = async (file) => {
     try {
+        console.log('📄 Parsing resume:', file.originalname, 'Type:', file.mimetype);
+        
         const buffer = fs.readFileSync(file.path);
+        console.log('📄 File buffer size:', buffer.length, 'bytes');
 
         if (file.mimetype === 'application/pdf') {
-            return await parsePdf(buffer);
+            return await parsePdf(buffer, file.originalname);
         }
         else if (
             file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
@@ -39,6 +38,7 @@ const parseResume = async (file) => {
             throw new ApiError(400, 'Unsupported file format. Please upload PDF or DOCX.');
         }
     } catch (error) {
+        console.error('❌ Resume parsing error:', error);
         if (error instanceof ApiError) throw error;
         throw new ApiError(500, `Failed to parse resume: ${error.message}`);
     }
@@ -47,14 +47,25 @@ const parseResume = async (file) => {
 /**
  * Extract text from PDF buffer
  * @param {Buffer} buffer 
+ * @param {string} filename - Original filename for logging
  * @returns {Promise<string>}
  */
-const parsePdf = async (buffer) => {
+const parsePdf = async (buffer, filename = 'unknown') => {
     try {
+        console.log('📄 Attempting PDF parse for:', filename);
+        
         const data = await pdf(buffer);
+        console.log('✅ PDF parsed successfully. Pages:', data.numpages, 'Text length:', data.text?.length);
+        
+        if (!data.text || data.text.trim().length === 0) {
+            throw new Error('PDF appears to be empty or image-based (no extractable text)');
+        }
+        
         return cleanText(data.text);
     } catch (error) {
-        throw new Error('Could not parse PDF file');
+        console.error('❌ PDF parse error details:', error.message);
+        console.error('❌ Full error:', error);
+        throw new Error(`Could not parse PDF file: ${error.message}`);
     }
 };
 

@@ -261,6 +261,97 @@ Logout user (invalidate refresh token)
 }
 ```
 
+### Resume Endpoints
+
+#### `POST /api/v1/resume/upload`
+Upload and parse resume (PDF/DOCX)
+
+**Headers:**
+- `Authorization: Bearer <token>`
+- `Content-Type: multipart/form-data`
+
+**Body:**
+- `resume`: File object
+
+**Response (201):**
+```json
+{
+  "success": true,
+  "data": {
+    "resume": {
+      "id": "...",
+      "fileName": "my_cv.pdf",
+      "textLength": 1250,
+      "status": "uploaded"
+    }
+  }
+}
+```
+
+#### `GET /api/v1/resume`
+List all uploaded resumes
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "count": 2,
+    "resumes": [...]
+  }
+}
+```
+
+### Analysis Endpoints
+
+#### `POST /api/v1/resume/:id/analyze`
+Analyze resume against job description
+
+**Body:**
+```json
+{
+  "jobDescription": "We are looking for..."
+}
+```
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "score": 85.5,
+    "matchedKeywords": ["python", "fastapi"],
+    "missingKeywords": ["docker"],
+    "summary": null
+  }
+}
+```
+
+### Interview Endpoints
+
+#### `POST /api/v1/interview/start`
+Start new session
+
+**Body:**
+```json
+{
+  "resumeId": "...",
+  "jobTitle": "...",
+  "jobDescription": "..."
+}
+```
+
+#### `POST /api/v1/interview/:id/answer`
+Submit answer
+
+**Body:**
+```json
+{
+  "questionId": "...",
+  "answer": "..."
+}
+```
+
 ## 🛡️ Security Features
 
 - **Helmet**: Secure HTTP headers
@@ -329,8 +420,8 @@ Coming in Step 7 (DevOps)
 
 - [x] Step 1: Backend Foundation ✅
 - [x] Step 2: Authentication System ✅
-- [ ] Step 3: Resume Intelligence (Upload, parsing, ML integration)
-- [ ] Step 4: ML Service (ATS scoring, skill extraction)
+- [x] Step 3: Resume Intelligence (Upload, parsing, ML integration) ✅
+- [x] Step 4: ML Service (ATS scoring, skill extraction) ✅
 - [ ] Step 5: Interview Intelligence (Questions, evaluation)
 - [ ] Step 6: Frontend (React + Tailwind)
 - [ ] Step 7: DevOps (Docker, Nginx, deployment)

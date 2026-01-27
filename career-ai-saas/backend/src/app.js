@@ -20,6 +20,8 @@ const { errorHandler, notFoundHandler } = require('./middlewares/errorHandler');
 // Import routes
 const healthRoutes = require('./routes/health.routes');
 const authRoutes = require('./routes/auth.routes');
+const resumeRoutes = require('./routes/resume.routes');
+const interviewRoutes = require('./routes/interview.routes');
 
 // Initialize Express app
 const app = express();
@@ -63,8 +65,8 @@ app.use('/health', healthRoutes);
 
 // API routes
 app.use(`${API_BASE}/auth`, authRoutes);
-// app.use(`${API_BASE}/resume`, resumeRoutes);
-// app.use(`${API_BASE}/interview`, interviewRoutes);
+app.use(`${API_BASE}/resume`, resumeRoutes);
+app.use(`${API_BASE}/interview`, interviewRoutes);
 // app.use(`${API_BASE}/analytics`, analyticsRoutes);
 
 // Welcome route

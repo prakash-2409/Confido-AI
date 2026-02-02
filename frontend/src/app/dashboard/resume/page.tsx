@@ -127,7 +127,9 @@ export default function ResumePage() {
     setIsAnalyzing(true);
     try {
       const response = await resumeApi.analyze(selectedResume._id, jobDescription);
-      const analysis = response.data.data;
+      const analysisData = response.data.data;
+      // Handle both old and new response formats
+      const analysis = 'analysis' in analysisData ? analysisData.analysis : analysisData;
       setAnalysisResult(analysis);
       
       // Update the resume in the list with new score

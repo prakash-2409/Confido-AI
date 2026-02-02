@@ -112,7 +112,7 @@ Basic service health check
     "environment": "development",
     "version": "1.0.0"
   }
-}
+} 
 ```
 
 #### `GET /health/db`
@@ -132,10 +132,11 @@ Database connectivity check
 }
 ```
 
-### Coming Soon
+### Implemented Features
 - `POST /api/v1/resume/upload` - Upload resume for analysis
-- `GET /api/v1/interview/questions` - Get interview questions
-- `POST /api/v1/interview/evaluate` - Evaluate interview answer
+- `POST /api/v1/interview/start` - Start interview session
+- `POST /api/v1/interview/:id/answer` - Submit and evaluate answer
+- `POST /api/v1/interview/:id/complete` - Complete with summary
 
 ### Authentication Endpoints
 
@@ -330,27 +331,106 @@ Analyze resume against job description
 ### Interview Endpoints
 
 #### `POST /api/v1/interview/start`
-Start new session
+Start new interview session
 
 **Body:**
 ```json
 {
-  "resumeId": "...",
-  "jobTitle": "...",
-  "jobDescription": "..."
+  "jobRole": "Senior Full Stack Developer",
+  "jobDescription": "Looking for a developer with JavaScript, React, Node.js experience...",
+  "resumeId": "optional-resume-id"
 }
 ```
+
+**Response (201):**
+```json
+{
+  "success": true,
+  "message": "Interview session started successfully",
+  "data": {
+    "interviewId": "...",
+    "jobRole": "Senior Full Stack Developer",
+    "totalQuestions": 8,
+    "extractedSkills": ["javascript", "react", "nodejs"],
+    "currentQuestion": {...},
+    "questions": [...]
+  }
+}
+```
+
+#### `GET /api/v1/interview/:id`
+Get interview session details
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "interviewId": "...",
+    "status": "in_progress",
+    "progress": 37,
+    "questions": [...],
+    "answers": [...],
+    "nextQuestion": {...}
+  }
+}
+```
+
+#### `GET /api/v1/interview/history`
+Get user's interview history with pagination
+
+**Query params:** `status`, `limit`, `page`
 
 #### `POST /api/v1/interview/:id/answer`
-Submit answer
+Submit answer for evaluation
 
 **Body:**
 ```json
 {
-  "questionId": "...",
-  "answer": "..."
+  "questionId": "q-123...",
+  "answerText": "Detailed answer here..."
 }
 ```
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "evaluation": {
+      "score": 85,
+      "feedback": "Excellent answer!",
+      "strengths": ["Includes specific examples"],
+      "improvements": ["Add more metrics"]
+    },
+    "progress": {...},
+    "hasMoreQuestions": true,
+    "nextQuestion": {...}
+  }
+}
+```
+
+#### `POST /api/v1/interview/:id/complete`
+Complete interview and get summary
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "summary": {
+      "overallScore": 78,
+      "readinessLevel": "Medium",
+      "strongAreas": ["Technical questions"],
+      "weakAreas": ["Behavioral questions"],
+      "categoryScores": {...},
+      "recommendations": [...]
+    }
+  }
+}
+```
+
+See [INTERVIEW_TESTING.md](backend/INTERVIEW_TESTING.md) for full API documentation.
 
 ## 🛡️ Security Features
 
@@ -422,7 +502,7 @@ Coming in Step 7 (DevOps)
 - [x] Step 2: Authentication System ✅
 - [x] Step 3: Resume Intelligence (Upload, parsing, ML integration) ✅
 - [x] Step 4: ML Service (ATS scoring, skill extraction) ✅
-- [ ] Step 5: Interview Intelligence (Questions, evaluation)
+- [x] Step 5: Interview Intelligence (Questions, evaluation, summary) ✅
 - [ ] Step 6: Frontend (React + Tailwind)
 - [ ] Step 7: DevOps (Docker, Nginx, deployment)
 

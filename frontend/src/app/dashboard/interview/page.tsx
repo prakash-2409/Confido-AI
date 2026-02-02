@@ -1,47 +1,73 @@
 'use client';
 
 /**
- * Interview Practice Page
+ * Interview Hub Page
  * 
- * Simple text-based interview practice with AI-generated questions
+ * Features:
+ * - Start new interview sessions
+ * - View interview history
+ * - Quick access to in-progress interviews
  */
 
 import { useState, useEffect } from 'react';
-import { interviewApi, Interview, InterviewQuestion } from '@/lib/api';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
+import { interviewApi, Interview, getErrorMessage } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import {
   MessageSquare,
   Play,
   Loader2,
-  ChevronRight,
-  ChevronLeft,
-  CheckCircle2,
   Clock,
   Target,
   Sparkles,
-  RefreshCw,
   Award,
+  ChevronRight,
+  TrendingUp,
+  BarChart3,
+  CheckCircle2,
+  AlertCircle,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+// Animation variants
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0 },
+};
 
 type Difficulty = 'easy' | 'medium' | 'hard';
 
-export default function InterviewPage() {
+const difficultyConfig = {
+  easy: { label: 'Easy', color: 'border-green-200 bg-green-50 text-green-700', description: 'Great for beginners' },
+  medium: { label: 'Medium', color: 'border-yellow-200 bg-yellow-50 text-yellow-700', description: 'Standard interview level' },
+  hard: { label: 'Hard', color: 'border-red-200 bg-red-50 text-red-700', description: 'Senior/leadership positions' },
+};
+
+export default function InterviewHubPage() {
   const { user } = useAuth();
+  const router = useRouter();
+  
   const [interviews, setInterviews] = useState<Interview[]>([]);
-  const [activeInterview, setActiveInterview] = useState<Interview | null>(null);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [answer, setAnswer] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // New interview form
   const [targetRole, setTargetRole] = useState(user?.targetRole || '');
@@ -63,150 +89,165 @@ export default function InterviewPage() {
   };
 
   const handleCreateInterview = async () => {
-    if (!targetRole || targetRole.length < 3) {
-      toast.error('Please enter a valid target role');
+    if (!targetRole || targetRole.trim().length < 3) {
+      toast.error('Please enter a valid target role (at least 3 characters)');
       return;
     }
 
     setIsCreating(true);
     try {
-      const response = await interviewApi.create({ targetRole, difficulty });
+      const response = await interviewApi.create({ targetRole: targetRole.trim(), difficulty });
       const newInterview = response.data.data.interview;
-      setInterviews((prev) => [newInterview, ...prev]);
-      setActiveInterview(newInterview);
-      setCurrentQuestionIndex(0);
-      setAnswer('');
-      toast.success('Interview session created!');
-    } catch (error: any) {
-      const message = error.response?.data?.message || 'Failed to create interview';
+      toast.success('Interview session created! Redirecting...');
+      router.push(`/interview/${newInterview._id}`);
+    } catch (error) {
+      const message = getErrorMessage(error);
       toast.error(message);
     } finally {
       setIsCreating(false);
     }
   };
 
-  const handleSubmitAnswer = async () => {
-    if (!activeInterview || !answer.trim()) {
-      toast.error('Please enter your answer');
-      return;
-    }
-
-    const currentQuestion = activeInterview.questions[currentQuestionIndex];
-    setIsSubmitting(true);
-
-    try {
-      const response = await interviewApi.submitAnswer(
-        activeInterview._id,
-        currentQuestion._id,
-        answer
-      );
-      
-      // Update the question with the response
-      const updatedQuestion = response.data.data.question;
-      setActiveInterview((prev) => {
-        if (!prev) return prev;
-        const updatedQuestions = [...prev.questions];
-        updatedQuestions[currentQuestionIndex] = {
-          ...updatedQuestions[currentQuestionIndex],
-          userAnswer: answer,
-          score: updatedQuestion.score,
-          feedback: updatedQuestion.feedback,
-        };
-        return { ...prev, questions: updatedQuestions };
-      });
-
-      toast.success('Answer submitted!');
-      
-      // Move to next question or finish
-      if (currentQuestionIndex < activeInterview.questions.length - 1) {
-        setCurrentQuestionIndex((prev) => prev + 1);
-        setAnswer('');
-      }
-    } catch (error: any) {
-      toast.error('Failed to submit answer');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleCompleteInterview = async () => {
-    if (!activeInterview) return;
-
-    try {
-      const response = await interviewApi.complete(activeInterview._id);
-      const completedInterview = response.data.data.interview;
-      setActiveInterview(completedInterview);
-      setInterviews((prev) =>
-        prev.map((i) => (i._id === completedInterview._id ? completedInterview : i))
-      );
-      toast.success('Interview completed!');
-    } catch (error: any) {
-      toast.error('Failed to complete interview');
-    }
-  };
-
-  const currentQuestion = activeInterview?.questions[currentQuestionIndex];
-  const progress = activeInterview
-    ? ((currentQuestionIndex + 1) / activeInterview.questions.length) * 100
-    : 0;
-  const answeredCount = activeInterview?.questions.filter((q) => q.userAnswer).length || 0;
+  // Calculate stats
+  const completedInterviews = interviews.filter(i => i.status === 'completed');
+  const inProgressInterviews = interviews.filter(i => i.status === 'in_progress');
+  const averageScore = completedInterviews.length > 0
+    ? Math.round(completedInterviews.reduce((acc, i) => acc + (i.overallScore || 0), 0) / completedInterviews.length)
+    : null;
 
   return (
-    <div className="space-y-8">
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="space-y-8"
+    >
       {/* Header */}
-      <div>
+      <motion.div variants={itemVariants}>
         <h1 className="text-3xl font-bold">Interview Practice</h1>
         <p className="text-muted-foreground mt-1">
-          Practice with AI-generated questions for your target role
+          Practice with AI-generated questions tailored to your target role
         </p>
-      </div>
+      </motion.div>
 
-      {/* Active Interview or Create New */}
-      {!activeInterview ? (
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Create New Interview */}
-          <Card className="lg:col-span-1">
+      {/* Stats Overview */}
+      <motion.div variants={itemVariants} className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Total Sessions
+            </CardTitle>
+            <MessageSquare className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{interviews.length}</div>
+            <p className="text-xs text-muted-foreground">
+              {inProgressInterviews.length} in progress
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Completed
+            </CardTitle>
+            <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{completedInterviews.length}</div>
+            <p className="text-xs text-muted-foreground">
+              Interview sessions finished
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Average Score
+            </CardTitle>
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {averageScore !== null ? `${averageScore}%` : '--'}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {averageScore !== null 
+                ? averageScore >= 70 ? 'Great performance!' : 'Keep practicing!'
+                : 'Complete an interview to see'}
+            </p>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Main Content */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Create New Interview */}
+        <motion.div variants={itemVariants}>
+          <Card className="h-full">
             <CardHeader>
-              <CardTitle className="text-lg">Start New Interview</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-primary" />
+                Start New Interview
+              </CardTitle>
               <CardDescription>
-                Practice interview questions for your target role
+                Get personalized questions based on your target role
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="targetRole">Target Role</Label>
                 <Input
                   id="targetRole"
-                  placeholder="e.g., Frontend Developer"
+                  placeholder="e.g., Senior Frontend Developer"
                   value={targetRole}
                   onChange={(e) => setTargetRole(e.target.value)}
+                  disabled={isCreating}
                 />
+                <p className="text-xs text-muted-foreground">
+                  Be specific for better questions
+                </p>
               </div>
-              <div className="space-y-2">
-                <Label>Difficulty</Label>
-                <div className="flex gap-2">
-                  {(['easy', 'medium', 'hard'] as Difficulty[]).map((level) => (
-                    <Button
+
+              <div className="space-y-3">
+                <Label>Difficulty Level</Label>
+                <div className="grid gap-2">
+                  {(Object.entries(difficultyConfig) as [Difficulty, typeof difficultyConfig.easy][]).map(([level, config]) => (
+                    <button
                       key={level}
-                      variant={difficulty === level ? 'default' : 'outline'}
-                      size="sm"
                       onClick={() => setDifficulty(level)}
-                      className="flex-1 capitalize"
+                      disabled={isCreating}
+                      className={cn(
+                        'flex items-center justify-between p-3 rounded-lg border-2 transition-all text-left',
+                        difficulty === level 
+                          ? 'border-primary bg-primary/5' 
+                          : 'border-border hover:border-muted-foreground/30'
+                      )}
                     >
-                      {level}
-                    </Button>
+                      <div>
+                        <div className="font-medium text-sm">{config.label}</div>
+                        <div className="text-xs text-muted-foreground">{config.description}</div>
+                      </div>
+                      <Badge className={cn('text-xs', config.color)}>
+                        {config.label}
+                      </Badge>
+                    </button>
                   ))}
                 </div>
               </div>
+
               <Button
                 onClick={handleCreateInterview}
-                disabled={isCreating || !targetRole}
+                disabled={isCreating || !targetRole.trim()}
                 className="w-full gap-2"
+                size="lg"
               >
                 {isCreating ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Creating...
+                    Creating Interview...
                   </>
                 ) : (
                   <>
@@ -217,281 +258,185 @@ export default function InterviewPage() {
               </Button>
             </CardContent>
           </Card>
+        </motion.div>
 
-          {/* Previous Interviews */}
-          <Card className="lg:col-span-2">
+        {/* Interview History */}
+        <motion.div variants={itemVariants} className="lg:col-span-2">
+          <Card className="h-full">
             <CardHeader>
-              <CardTitle className="text-lg">Previous Interviews</CardTitle>
-              <CardDescription>Continue or review past interview sessions</CardDescription>
+              <CardTitle>Interview History</CardTitle>
+              <CardDescription>
+                Continue sessions or review past performance
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {isLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin" />
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
               ) : interviews.length === 0 ? (
-                <div className="text-center py-8">
-                  <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">No interview sessions yet</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Start your first practice interview!
+                <div className="text-center py-12">
+                  <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+                    <MessageSquare className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <h3 className="font-semibold mb-2">No Interview Sessions Yet</h3>
+                  <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                    Start your first mock interview to practice and improve your skills.
                   </p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {interviews.map((interview) => (
-                    <div
-                      key={interview._id}
-                      className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="h-10 w-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                          <Target className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                        </div>
-                        <div>
-                          <p className="font-medium">{interview.targetRole}</p>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Clock className="h-3 w-3" />
-                            {new Date(interview.createdAt).toLocaleDateString()}
-                            <Badge variant="outline" className="text-xs capitalize">
-                              {interview.difficulty}
-                            </Badge>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        {interview.overallScore !== undefined && (
-                          <Badge variant={interview.overallScore >= 70 ? 'default' : 'secondary'}>
-                            {Math.round(interview.overallScore)}%
-                          </Badge>
-                        )}
-                        <Badge
-                          variant={
-                            interview.status === 'completed'
-                              ? 'default'
-                              : interview.status === 'in_progress'
-                              ? 'secondary'
-                              : 'outline'
-                          }
-                          className="capitalize"
-                        >
-                          {interview.status.replace('_', ' ')}
-                        </Badge>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setActiveInterview(interview);
-                            setCurrentQuestionIndex(0);
-                            setAnswer('');
-                          }}
-                        >
-                          {interview.status === 'completed' ? 'Review' : 'Continue'}
-                        </Button>
-                      </div>
+                  {/* In Progress Section */}
+                  {inProgressInterviews.length > 0 && (
+                    <div className="mb-4">
+                      <h4 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4 text-yellow-500" />
+                        In Progress
+                      </h4>
+                      {inProgressInterviews.map((interview) => (
+                        <InterviewCard 
+                          key={interview._id} 
+                          interview={interview} 
+                          highlight 
+                        />
+                      ))}
                     </div>
-                  ))}
+                  )}
+
+                  {/* Completed Section */}
+                  {completedInterviews.length > 0 && (
+                    <div>
+                      {inProgressInterviews.length > 0 && (
+                        <h4 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
+                          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                          Completed
+                        </h4>
+                      )}
+                      {completedInterviews.slice(0, 5).map((interview) => (
+                        <InterviewCard 
+                          key={interview._id} 
+                          interview={interview} 
+                        />
+                      ))}
+                      
+                      {completedInterviews.length > 5 && (
+                        <p className="text-center text-sm text-muted-foreground mt-4">
+                          And {completedInterviews.length - 5} more completed sessions
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
           </Card>
-        </div>
-      ) : (
-        /* Active Interview Session */
-        <div className="space-y-6">
-          {/* Progress Header */}
-          <Card>
-            <CardContent className="py-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-4">
-                  <Badge variant="outline" className="capitalize">
-                    {activeInterview.difficulty}
-                  </Badge>
-                  <span className="text-sm text-muted-foreground">
-                    {activeInterview.targetRole}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">
-                    Question {currentQuestionIndex + 1} of {activeInterview.questions.length}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setActiveInterview(null)}
-                  >
-                    Exit
-                  </Button>
-                </div>
+        </motion.div>
+      </div>
+
+      {/* Tips Section */}
+      <motion.div variants={itemVariants}>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              Interview Tips
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="p-4 rounded-lg bg-muted/50">
+                <h4 className="font-medium mb-2">Use the STAR Method</h4>
+                <p className="text-sm text-muted-foreground">
+                  Structure behavioral answers with Situation, Task, Action, and Result.
+                </p>
               </div>
-              <Progress value={progress} className="h-2" />
-            </CardContent>
-          </Card>
+              <div className="p-4 rounded-lg bg-muted/50">
+                <h4 className="font-medium mb-2">Be Specific</h4>
+                <p className="text-sm text-muted-foreground">
+                  Provide concrete examples and quantify your achievements when possible.
+                </p>
+              </div>
+              <div className="p-4 rounded-lg bg-muted/50">
+                <h4 className="font-medium mb-2">Practice Regularly</h4>
+                <p className="text-sm text-muted-foreground">
+                  Consistent practice builds confidence and improves your delivery.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+    </motion.div>
+  );
+}
 
-          {/* Question & Answer */}
-          <div className="grid gap-6 lg:grid-cols-3">
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <Badge>{currentQuestion?.category || 'General'}</Badge>
-                </div>
-                <CardTitle className="text-xl mt-2">
-                  {currentQuestion?.questionText}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {activeInterview.status !== 'completed' && !currentQuestion?.userAnswer ? (
-                  <>
-                    <Textarea
-                      placeholder="Type your answer here... Be specific and provide examples from your experience."
-                      value={answer}
-                      onChange={(e) => setAnswer(e.target.value)}
-                      className="min-h-[200px] resize-none"
-                    />
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-muted-foreground">
-                        {answer.length} characters
-                        {answer.length < 50 && answer.length > 0 && (
-                          <span className="text-amber-500 ml-2">
-                            (try to write at least 50 characters)
-                          </span>
-                        )}
-                      </p>
-                      <Button
-                        onClick={handleSubmitAnswer}
-                        disabled={isSubmitting || !answer.trim()}
-                        className="gap-2"
-                      >
-                        {isSubmitting ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            Submitting...
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle2 className="h-4 w-4" />
-                            Submit Answer
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </>
-                ) : (
-                  /* Show Answer & Feedback */
-                  <div className="space-y-4">
-                    <div className="p-4 bg-muted/50 rounded-lg">
-                      <Label className="text-sm text-muted-foreground">Your Answer</Label>
-                      <p className="mt-2">{currentQuestion?.userAnswer || 'No answer provided'}</p>
-                    </div>
-                    {currentQuestion?.feedback && (
-                      <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-900">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Sparkles className="h-4 w-4 text-blue-600" />
-                          <Label className="text-sm text-blue-800 dark:text-blue-200">
-                            AI Feedback
-                          </Label>
-                          {currentQuestion.score !== undefined && (
-                            <Badge className="ml-auto">
-                              {Math.round(currentQuestion.score)}%
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-sm text-blue-800 dark:text-blue-200">
-                          {currentQuestion.feedback}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+// Interview Card Component
+function InterviewCard({ interview, highlight = false }: { interview: Interview; highlight?: boolean }) {
+  const router = useRouter();
+  const isCompleted = interview.status === 'completed';
+  
+  const handleClick = () => {
+    if (isCompleted) {
+      router.push(`/interview/${interview._id}/summary`);
+    } else {
+      router.push(`/interview/${interview._id}`);
+    }
+  };
 
-            {/* Navigation & Progress */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Questions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  {activeInterview.questions.map((q, index) => (
-                    <Button
-                      key={q._id}
-                      variant={index === currentQuestionIndex ? 'default' : 'outline'}
-                      size="sm"
-                      className="w-full justify-start gap-2"
-                      onClick={() => {
-                        setCurrentQuestionIndex(index);
-                        setAnswer('');
-                      }}
-                    >
-                      <span className="h-5 w-5 rounded-full bg-muted flex items-center justify-center text-xs">
-                        {index + 1}
-                      </span>
-                      <span className="truncate flex-1 text-left">
-                        {q.category}
-                      </span>
-                      {q.userAnswer && (
-                        <CheckCircle2 className="h-4 w-4 text-green-500" />
-                      )}
-                    </Button>
-                  ))}
-                </div>
-
-                {/* Navigation Buttons */}
-                <div className="flex gap-2 pt-4 border-t">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={currentQuestionIndex === 0}
-                    onClick={() => {
-                      setCurrentQuestionIndex((prev) => prev - 1);
-                      setAnswer('');
-                    }}
-                    className="flex-1"
-                  >
-                    <ChevronLeft className="h-4 w-4 mr-1" />
-                    Previous
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={currentQuestionIndex === activeInterview.questions.length - 1}
-                    onClick={() => {
-                      setCurrentQuestionIndex((prev) => prev + 1);
-                      setAnswer('');
-                    }}
-                    className="flex-1"
-                  >
-                    Next
-                    <ChevronRight className="h-4 w-4 ml-1" />
-                  </Button>
-                </div>
-
-                {/* Complete Interview */}
-                {answeredCount === activeInterview.questions.length &&
-                  activeInterview.status !== 'completed' && (
-                    <Button onClick={handleCompleteInterview} className="w-full gap-2">
-                      <Award className="h-4 w-4" />
-                      Complete Interview
-                    </Button>
-                  )}
-
-                {activeInterview.status === 'completed' && activeInterview.overallScore !== undefined && (
-                  <div className="p-4 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-900 text-center">
-                    <Award className="h-8 w-8 text-green-600 mx-auto mb-2" />
-                    <p className="font-medium text-green-800 dark:text-green-200">
-                      Overall Score
-                    </p>
-                    <p className="text-2xl font-bold text-green-600">
-                      {Math.round(activeInterview.overallScore)}%
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      className={cn(
+        'flex items-center justify-between p-4 rounded-lg border transition-all cursor-pointer mb-2',
+        highlight 
+          ? 'border-yellow-200 bg-yellow-50/50 hover:bg-yellow-50' 
+          : 'hover:bg-muted/50'
+      )}
+      onClick={handleClick}
+    >
+      <div className="flex items-center gap-4">
+        <div className={cn(
+          'h-10 w-10 rounded-lg flex items-center justify-center',
+          isCompleted ? 'bg-emerald-100 text-emerald-600' : 'bg-yellow-100 text-yellow-600'
+        )}>
+          {isCompleted ? <Award className="h-5 w-5" /> : <Target className="h-5 w-5" />}
+        </div>
+        <div>
+          <p className="font-medium">{interview.targetRole}</p>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Clock className="h-3 w-3" />
+            <span>{new Date(interview.createdAt).toLocaleDateString()}</span>
+            <Badge 
+              variant="outline" 
+              className={cn(
+                'text-xs',
+                difficultyConfig[interview.difficulty]?.color
+              )}
+            >
+              {interview.difficulty}
+            </Badge>
           </div>
         </div>
-      )}
-    </div>
+      </div>
+      <div className="flex items-center gap-3">
+        {isCompleted && interview.overallScore !== undefined && (
+          <Badge className={cn(
+            interview.overallScore >= 70 
+              ? 'bg-emerald-100 text-emerald-700' 
+              : 'bg-orange-100 text-orange-700'
+          )}>
+            {Math.round(interview.overallScore)}%
+          </Badge>
+        )}
+        <Badge
+          variant={isCompleted ? 'secondary' : 'default'}
+          className="capitalize"
+        >
+          {interview.status.replace('_', ' ')}
+        </Badge>
+        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+      </div>
+    </motion.div>
   );
 }

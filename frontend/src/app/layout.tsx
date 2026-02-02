@@ -1,14 +1,44 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { Toaster } from "@/components/ui/sonner";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ 
+  subsets: ["latin"],
+  display: 'swap',
+  variable: '--font-inter',
+});
 
 export const metadata: Metadata = {
-  title: "CareerAI - AI-Powered Resume & Interview Coach",
-  description: "Get your resume ATS-ready and ace your interviews with AI-powered feedback",
+  title: {
+    default: "CareerAI - AI-Powered Resume & Interview Coach",
+    template: "%s | CareerAI",
+  },
+  description: "Get your resume ATS-ready and ace your interviews with AI-powered feedback. Optimize your career with intelligent insights.",
+  keywords: ["resume", "ATS", "interview", "career", "AI", "job search", "career coach"],
+  authors: [{ name: "CareerAI Team" }],
+  openGraph: {
+    title: "CareerAI - AI-Powered Resume & Interview Coach",
+    description: "Get your resume ATS-ready and ace your interviews with AI-powered feedback.",
+    type: "website",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "CareerAI - AI-Powered Resume & Interview Coach",
+    description: "Get your resume ATS-ready and ace your interviews with AI-powered feedback.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default function RootLayout({
@@ -18,10 +48,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
+      <body className={`${inter.className} antialiased`}>
         <AuthProvider>
           {children}
-          <Toaster position="top-right" />
+          <Toaster position="top-right" richColors closeButton />
         </AuthProvider>
       </body>
     </html>

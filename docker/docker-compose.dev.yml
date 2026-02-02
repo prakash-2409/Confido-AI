@@ -1,0 +1,40 @@
+version: '3.8'
+
+# Development override - use with: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  mongodb:
+    ports:
+      - "27017:27017"
+
+  ml-service:
+    build:
+      context: ../ml-service
+      dockerfile: Dockerfile
+    volumes:
+      - ../ml-service/app:/app/app
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DEBUG=true
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    volumes:
+      - ../backend/src:/app/src
+      - ../backend/uploads:/app/uploads
+    environment:
+      - NODE_ENV=development
+      - DEBUG=true
+    command: npm run dev
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    volumes:
+      - ../frontend/src:/app/src
+    environment:
+      - NODE_ENV=development
+    command: npm run dev

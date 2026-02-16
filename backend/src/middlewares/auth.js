@@ -15,10 +15,15 @@ const User = require('../models/User');
  */
 const protect = async (req, res, next) => {
     try {
-        // 1. Get token from Authorization header
+        // 1. Get token from cookie (preferred) or Authorization header
         let token;
 
-        if (
+        // Check HttpOnly cookie first
+        if (req.cookies?.accessToken) {
+            token = req.cookies.accessToken;
+        }
+        // Fall back to Authorization header
+        else if (
             req.headers.authorization &&
             req.headers.authorization.startsWith('Bearer')
         ) {
@@ -68,7 +73,12 @@ const optionalAuth = async (req, res, next) => {
     try {
         let token;
 
-        if (
+        // Check HttpOnly cookie first
+        if (req.cookies?.accessToken) {
+            token = req.cookies.accessToken;
+        }
+        // Fall back to Authorization header
+        else if (
             req.headers.authorization &&
             req.headers.authorization.startsWith('Bearer')
         ) {

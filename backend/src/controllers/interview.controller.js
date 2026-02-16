@@ -16,25 +16,94 @@ const { evaluateInterviewAnswer, generateInterviewSummary } = require('../servic
 const { ApiError } = require('../middlewares/errorHandler');
 
 // ============================================================
+// RESPONSE FORMATTER
+// ============================================================
+
+/**
+ * Transform interview document into shape the frontend expects
+ * @param {Object} interview - Mongoose Interview document
+ * @param {boolean} includeDetails - Include questions, answers, summary details
+ * @returns {Object} Formatted interview
+ */
+const formatInterviewForClient = (interview, includeDetails = false) => {
+    const base = {
+        _id: interview._id,
+        title: `${interview.jobRole} Interview`,
+        targetRole: interview.jobRole,
+        difficulty: interview.difficulty || 'medium',
+        status: interview.status,
+        totalQuestions: interview.totalQuestions,
+        answeredQuestions: interview.answers ? interview.answers.length : 0,
+        overallScore: interview.summary?.overallScore || null,
+        createdAt: interview.startedAt || interview.createdAt,
+        completedAt: interview.completedAt || null,
+    };
+
+    if (includeDetails) {
+        // Merge answers into questions so frontend gets questions[].userAnswer, .score, .feedback
+        base.questions = interview.questions.map(q => {
+            const answer = interview.answers?.find(a => a.questionId === q.id);
+            return {
+                _id: q.id,
+                questionText: q.questionText,
+                category: q.category,
+                difficulty: q.difficulty || 'medium',
+                userAnswer: answer?.answerText || null,
+                score: answer?.score || null,
+                feedback: answer?.feedback || null,
+                answeredAt: answer?.answeredAt || null,
+            };
+        });
+
+        // Transform categoryScores from object { behavioral: N } to array [{ category, score, ... }]
+        if (interview.summary?.categoryScores) {
+            const cs = interview.summary.categoryScores.toObject
+                ? interview.summary.categoryScores.toObject()
+                : interview.summary.categoryScores;
+            base.categoryScores = Object.entries(cs)
+                .filter(([, score]) => score !== null && score !== undefined)
+                .map(([category, score]) => {
+                    const catAnswers = interview.answers?.filter(a => a.category === category) || [];
+                    const catQuestions = interview.questions?.filter(q => q.category === category) || [];
+                    return {
+                        category,
+                        score,
+                        totalQuestions: catQuestions.length,
+                        answeredQuestions: catAnswers.length,
+                    };
+                });
+        } else {
+            base.categoryScores = [];
+        }
+
+        base.strengths = interview.summary?.strongAreas || [];
+        base.weaknesses = interview.summary?.weakAreas || [];
+        base.recommendations = interview.summary?.recommendations || [];
+    }
+
+    return base;
+};
+
+// ============================================================
 // START INTERVIEW
 // ============================================================
 
 /**
  * Start a new interview session
- * POST /api/v1/interview/start
- * Body: { jobRole, jobDescription, resumeId? }
+ * POST /api/v1/interview/start  OR  POST /api/v1/interview
+ * Body: { targetRole OR jobRole, difficulty?, jobDescription?, resumeId? }
  */
 const startInterview = async (req, res, next) => {
     try {
-        const { jobRole, jobDescription, resumeId } = req.body;
+        // Accept both frontend field names (targetRole) and backend field names (jobRole)
+        const jobRole = req.body.targetRole || req.body.jobRole;
+        const difficulty = req.body.difficulty || 'medium';
+        const jobDescription = req.body.jobDescription || `${jobRole} position requiring relevant skills and experience in ${jobRole}.`;
+        const { resumeId } = req.body;
 
         // Validation
-        if (!jobRole || !jobDescription) {
-            throw new ApiError(400, 'Missing required fields: jobRole and jobDescription');
-        }
-
-        if (jobDescription.length < 50) {
-            throw new ApiError(400, 'Job description is too short. Please provide more details.');
+        if (!jobRole) {
+            throw new ApiError(400, 'Missing required field: targetRole (or jobRole)');
         }
 
         // Optional: Get resume if provided
@@ -59,6 +128,7 @@ const startInterview = async (req, res, next) => {
             resume: resume?._id || null,
             jobRole,
             jobDescription,
+            difficulty,
             extractedSkills,
             questions,
             totalQuestions: questions.length,
@@ -66,27 +136,13 @@ const startInterview = async (req, res, next) => {
             currentQuestionIndex: 0,
         });
 
-        // Return interview data with first question
+        // Return interview data in shape the frontend expects
+        const formatted = formatInterviewForClient(interview, true);
         res.status(201).json({
             success: true,
             message: 'Interview session started successfully',
             data: {
-                interviewId: interview._id,
-                jobRole: interview.jobRole,
-                totalQuestions: interview.totalQuestions,
-                extractedSkills: interview.extractedSkills,
-                currentQuestion: {
-                    index: 0,
-                    id: questions[0].id,
-                    questionText: questions[0].questionText,
-                    category: questions[0].category,
-                },
-                questions: questions.map((q, index) => ({
-                    index,
-                    id: q.id,
-                    questionText: q.questionText,
-                    category: q.category,
-                })),
+                interview: formatted,
             },
         });
     } catch (error) {
@@ -113,65 +169,13 @@ const getInterview = async (req, res, next) => {
             throw new ApiError(404, 'Interview session not found');
         }
 
-        // Build response based on interview status
-        const response = {
-            interviewId: interview._id,
-            jobRole: interview.jobRole,
-            jobDescription: interview.jobDescription,
-            status: interview.status,
-            totalQuestions: interview.totalQuestions,
-            answeredQuestions: interview.answers.length,
-            currentQuestionIndex: interview.currentQuestionIndex,
-            progress: interview.progress,
-            startedAt: interview.startedAt,
-            extractedSkills: interview.extractedSkills,
-        };
-
-        // Include questions (without expected keywords)
-        response.questions = interview.questions.map((q, index) => ({
-            index,
-            id: q.id,
-            questionText: q.questionText,
-            category: q.category,
-            difficulty: q.difficulty,
-            isAnswered: interview.answers.some(a => a.questionId === q.id),
-        }));
-
-        // Include answers with evaluations
-        response.answers = interview.answers.map(a => ({
-            questionId: a.questionId,
-            questionText: a.questionText,
-            category: a.category,
-            answerText: a.answerText,
-            score: a.score,
-            feedback: a.feedback,
-            strengths: a.strengths,
-            improvements: a.improvements,
-            answeredAt: a.answeredAt,
-        }));
-
-        // Include summary if completed
-        if (interview.status === 'completed' && interview.summary) {
-            response.summary = interview.summary;
-            response.completedAt = interview.completedAt;
-        }
-
-        // Include next question if in progress
-        if (interview.status === 'in_progress') {
-            const nextQuestion = interview.getNextQuestion();
-            if (nextQuestion) {
-                response.nextQuestion = {
-                    index: interview.currentQuestionIndex,
-                    id: nextQuestion.id,
-                    questionText: nextQuestion.questionText,
-                    category: nextQuestion.category,
-                };
-            }
-        }
+        const formatted = formatInterviewForClient(interview, true);
 
         res.status(200).json({
             success: true,
-            data: response,
+            data: {
+                interview: formatted,
+            },
         });
     } catch (error) {
         next(error);
@@ -210,19 +214,8 @@ const getInterviewHistory = async (req, res, next) => {
             Interview.countDocuments(query)
         ]);
 
-        // Format response
-        const formattedInterviews = interviews.map(interview => ({
-            interviewId: interview._id,
-            jobRole: interview.jobRole,
-            status: interview.status,
-            totalQuestions: interview.totalQuestions,
-            answeredQuestions: interview.answers.length,
-            progress: Math.round((interview.answers.length / interview.totalQuestions) * 100),
-            overallScore: interview.summary?.overallScore || null,
-            readinessLevel: interview.summary?.readinessLevel || null,
-            startedAt: interview.startedAt,
-            completedAt: interview.completedAt || null,
-        }));
+        // Format response to match frontend expectations
+        const formattedInterviews = interviews.map(interview => formatInterviewForClient(interview, false));
 
         res.status(200).json({
             success: true,
@@ -252,7 +245,9 @@ const getInterviewHistory = async (req, res, next) => {
  */
 const submitAnswer = async (req, res, next) => {
     try {
-        const { questionId, answerText } = req.body;
+        // Accept both 'answer' (frontend) and 'answerText' (backend) field names
+        const { questionId } = req.body;
+        const answerText = req.body.answer || req.body.answerText;
         const interviewId = req.params.id;
 
         // Validation
@@ -336,36 +331,27 @@ const submitAnswer = async (req, res, next) => {
 
         // Check if there are more questions
         const hasMoreQuestions = interview.answers.length < interview.questions.length;
-        let nextQuestion = null;
 
-        if (hasMoreQuestions) {
-            const nextQ = interview.questions[interview.currentQuestionIndex];
-            nextQuestion = {
-                index: interview.currentQuestionIndex,
-                id: nextQ.id,
-                questionText: nextQ.questionText,
-                category: nextQ.category,
-            };
-        }
+        // Re-fetch and format the full interview for the frontend
+        const updatedInterview = await Interview.findById(interview._id);
+        const formatted = formatInterviewForClient(updatedInterview, true);
+
+        // Also return the updated question with its answer
+        const answeredQuestion = {
+            _id: questionId,
+            questionText: question.questionText,
+            category: question.category,
+            score: evaluation.score,
+            feedback: evaluation.feedback,
+            userAnswer: answerText.trim(),
+        };
 
         res.status(200).json({
             success: true,
             message: 'Answer submitted successfully',
             data: {
-                evaluation: {
-                    score: evaluation.score,
-                    feedback: evaluation.feedback,
-                    strengths: evaluation.strengths,
-                    improvements: evaluation.improvements,
-                },
-                progress: {
-                    answered: interview.answers.length,
-                    total: interview.totalQuestions,
-                    percentage: interview.progress,
-                },
-                hasMoreQuestions,
-                nextQuestion,
-                isReadyToComplete: !hasMoreQuestions,
+                question: answeredQuestion,
+                interview: formatted,
             },
         });
     } catch (error) {
@@ -460,33 +446,15 @@ const completeInterview = async (req, res, next) => {
 
         await interview.save();
 
+        // Re-fetch and return formatted interview
+        const updatedInterview = await Interview.findById(interview._id);
+        const formatted = formatInterviewForClient(updatedInterview, true);
+
         res.status(200).json({
             success: true,
             message: 'Interview completed successfully',
             data: {
-                interviewId: interview._id,
-                jobRole: interview.jobRole,
-                status: interview.status,
-                completedAt: interview.completedAt,
-                questionsAnswered: interview.answers.length,
-                totalQuestions: interview.totalQuestions,
-                summary: {
-                    overallScore: summary.overallScore,
-                    readinessLevel: summary.readinessLevel,
-                    strongAreas: summary.strongAreas,
-                    weakAreas: summary.weakAreas,
-                    categoryScores: summary.categoryScores,
-                    recommendations: summary.recommendations,
-                    feedbackSummary: summary.feedbackSummary
-                },
-                answers: interview.answers.map(a => ({
-                    questionText: a.questionText,
-                    category: a.category,
-                    score: a.score,
-                    feedback: a.feedback,
-                    strengths: a.strengths,
-                    improvements: a.improvements
-                }))
+                interview: formatted,
             },
         });
     } catch (error) {

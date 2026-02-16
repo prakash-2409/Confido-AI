@@ -42,14 +42,16 @@ const analyzeResumeAgainstJob = async (req, res, next) => {
         resume.status = 'analyzed';
         await resume.save();
 
-        // 4. Return results
+        // 4. Return results (wrapped in 'analysis' key for frontend compatibility)
         res.status(200).json({
             success: true,
             data: {
-                score: analysis.score,
-                matchedKeywords: analysis.matched_keywords,
-                missingKeywords: analysis.missing_keywords,
-                summary: analysis.summary,
+                analysis: {
+                    score: analysis.score,
+                    matchedKeywords: analysis.matched_keywords,
+                    missingKeywords: analysis.missing_keywords,
+                    summary: analysis.summary,
+                },
             },
         });
     } catch (error) {

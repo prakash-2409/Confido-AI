@@ -9,6 +9,7 @@
  * - Get current user profile
  */
 
+const crypto = require('crypto');
 const User = require('../models/User');
 const { ApiError } = require('../middlewares/errorHandler');
 const {
@@ -17,6 +18,39 @@ const {
     getExpiryTime,
 } = require('../utils/jwt');
 const config = require('../config/env');
+
+// ============================================================
+// COOKIE HELPERS
+// ============================================================
+
+const COOKIE_OPTIONS = {
+    httpOnly: true,
+    secure: config.env === 'production',
+    sameSite: config.env === 'production' ? 'strict' : 'lax',
+    path: '/',
+};
+
+/**
+ * Set access and refresh token cookies on the response
+ */
+const setTokenCookies = (res, accessToken, refreshToken) => {
+    res.cookie('accessToken', accessToken, {
+        ...COOKIE_OPTIONS,
+        maxAge: getExpiryTime(config.jwt.accessExpiresIn),
+    });
+    res.cookie('refreshToken', refreshToken, {
+        ...COOKIE_OPTIONS,
+        maxAge: getExpiryTime(config.jwt.refreshExpiresIn),
+    });
+};
+
+/**
+ * Clear auth cookies
+ */
+const clearTokenCookies = (res) => {
+    res.cookie('accessToken', '', { ...COOKIE_OPTIONS, maxAge: 0 });
+    res.cookie('refreshToken', '', { ...COOKIE_OPTIONS, maxAge: 0 });
+};
 
 /**
  * Register a new user
@@ -56,7 +90,10 @@ const register = async (req, res, next) => {
         user.addRefreshToken(refreshToken, refreshExpiryMs);
         await user.save();
 
-        // 6. Send response
+        // 6. Set HttpOnly cookies
+        setTokenCookies(res, accessToken, refreshToken);
+
+        // 7. Send response (no tokens in body - they're in cookies)
         res.status(201).json({
             success: true,
             message: 'User registered successfully',
@@ -66,11 +103,6 @@ const register = async (req, res, next) => {
                     email: user.email,
                     name: user.name,
                     profileCompleteness: user.profileCompleteness,
-                },
-                tokens: {
-                    accessToken,
-                    refreshToken,
-                    expiresIn: config.jwt.accessExpiresIn,
                 },
             },
         });
@@ -123,7 +155,10 @@ const login = async (req, res, next) => {
         user.lastLogin = new Date();
         await user.save();
 
-        // 7. Send response (exclude password)
+        // 7. Set HttpOnly cookies
+        setTokenCookies(res, accessToken, refreshToken);
+
+        // 8. Send response (exclude password, no tokens in body)
         user.password = undefined;
 
         res.status(200).json({
@@ -138,11 +173,6 @@ const login = async (req, res, next) => {
                     targetRole: user.targetRole,
                     profileCompleteness: user.profileCompleteness,
                     hasUploadedResume: user.hasUploadedResume,
-                },
-                tokens: {
-                    accessToken,
-                    refreshToken,
-                    expiresIn: config.jwt.accessExpiresIn,
                 },
             },
         });
@@ -159,7 +189,8 @@ const login = async (req, res, next) => {
  */
 const refreshAccessToken = async (req, res, next) => {
     try {
-        const { refreshToken } = req.body;
+        // Read refresh token from cookie or body
+        const refreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
 
         // 1. Validate input
         if (!refreshToken) {
@@ -200,15 +231,18 @@ const refreshAccessToken = async (req, res, next) => {
         user.addRefreshToken(tokens.refreshToken, refreshExpiryMs);
         await user.save();
 
-        // 8. Send response
+        // 8. Set new cookies
+        setTokenCookies(res, tokens.accessToken, tokens.refreshToken);
+
+        // 9. Send response
         res.status(200).json({
             success: true,
             message: 'Tokens refreshed successfully',
             data: {
-                tokens: {
-                    accessToken: tokens.accessToken,
-                    refreshToken: tokens.refreshToken,
-                    expiresIn: config.jwt.accessExpiresIn,
+                user: {
+                    id: user._id,
+                    email: user.email,
+                    name: user.name,
                 },
             },
         });
@@ -225,11 +259,8 @@ const refreshAccessToken = async (req, res, next) => {
  */
 const logout = async (req, res, next) => {
     try {
-        const { refreshToken } = req.body;
-
-        if (!refreshToken) {
-            throw new ApiError(400, 'Refresh token is required');
-        }
+        // Read refresh token from cookie or body
+        const refreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
 
         // Verify token and get user ID
         let decoded;
@@ -248,6 +279,9 @@ const logout = async (req, res, next) => {
                 await user.save();
             }
         }
+
+        // Clear auth cookies
+        clearTokenCookies(res);
 
         res.status(200).json({
             success: true,
@@ -343,6 +377,58 @@ const updateProfile = async (req, res, next) => {
     }
 };
 
+/**
+ * Get CSRF token
+ * GET /api/v1/auth/csrf
+ */
+const getCsrfToken = (req, res) => {
+    const token = crypto.randomBytes(32).toString('hex');
+    res.status(200).json({
+        success: true,
+        data: { token },
+    });
+};
+
+/**
+ * Forgot password
+ * POST /api/v1/auth/forgot-password
+ */
+const forgotPassword = async (req, res, next) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            throw new ApiError(400, 'Email is required');
+        }
+
+        // Security: always return success regardless of whether the email exists
+        // In production, integrate an email service (SendGrid/SES) to send reset links
+        res.status(200).json({
+            success: true,
+            message: 'If an account with that email exists, a password reset link has been sent.',
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Reset password
+ * POST /api/v1/auth/reset-password
+ */
+const resetPassword = async (req, res, next) => {
+    try {
+        const { token, password } = req.body;
+        if (!token || !password) {
+            throw new ApiError(400, 'Token and new password are required');
+        }
+
+        // TODO: Implement token verification and password reset when email service is added
+        throw new ApiError(501, 'Password reset is coming soon. Please contact support.');
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     register,
     login,
@@ -350,4 +436,7 @@ module.exports = {
     logout,
     getCurrentUser,
     updateProfile,
+    getCsrfToken,
+    forgotPassword,
+    resetPassword,
 };

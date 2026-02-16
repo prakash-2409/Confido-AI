@@ -145,7 +145,14 @@ const interviewSchema = new mongoose.Schema(
         },
         jobDescription: {
             type: String,
-            required: [true, 'Job description is required'],
+            default: '',
+        },
+
+        // Interview difficulty
+        difficulty: {
+            type: String,
+            enum: ['easy', 'medium', 'hard'],
+            default: 'medium',
         },
 
         // Extracted from JD

@@ -13,6 +13,8 @@
 const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
+const rateLimit = require('express-rate-limit');
 const config = require('./config/env');
 const requestLogger = require('./middlewares/requestLogger');
 const { errorHandler, notFoundHandler } = require('./middlewares/errorHandler');
@@ -35,6 +37,40 @@ app.use(helmet());
 
 // CORS configuration
 app.use(cors(config.cors));
+
+// Cookie parser (must be before routes)
+app.use(cookieParser());
+
+// ============================================================
+// RATE LIMITING
+// ============================================================
+
+// General API rate limiter
+const apiLimiter = rateLimit({
+    windowMs: config.rateLimit.windowMs,
+    max: config.rateLimit.maxRequests,
+    message: {
+        success: false,
+        error: { message: 'Too many requests, please try again later.', statusCode: 429 },
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// Stricter rate limit for auth endpoints
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 20, // 20 attempts per window
+    message: {
+        success: false,
+        error: { message: 'Too many authentication attempts, please try again later.', statusCode: 429 },
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// Apply rate limiting to API routes
+app.use('/api/', apiLimiter);
 
 // ============================================================
 // REQUEST PARSING MIDDLEWARE
@@ -64,7 +100,7 @@ const API_BASE = `/api/${config.apiVersion}`;
 app.use('/health', healthRoutes);
 
 // API routes
-app.use(`${API_BASE}/auth`, authRoutes);
+app.use(`${API_BASE}/auth`, authLimiter, authRoutes);
 app.use(`${API_BASE}/resume`, resumeRoutes);
 app.use(`${API_BASE}/interview`, interviewRoutes);
 // app.use(`${API_BASE}/analytics`, analyticsRoutes);

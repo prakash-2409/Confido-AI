@@ -26,6 +26,8 @@ router.use(protect);
 
 // Interview session management
 router.post('/start', startInterview);
+router.post('/', startInterview);           // Alias: frontend uses POST /interview
+router.get('/', getInterviewHistory);       // Alias: frontend uses GET /interview
 router.get('/history', getInterviewHistory);
 router.get('/:id', getInterview);
 router.post('/:id/answer', submitAnswer);

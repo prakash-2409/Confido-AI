@@ -64,10 +64,12 @@ const uploadResume = async (req, res, next) => {
             message: 'Resume uploaded and processed successfully',
             data: {
                 resume: {
-                    id: resume._id,
-                    fileName: resume.originalName,
-                    uploadedAt: resume.createdAt,
+                    _id: resume._id,
+                    originalFilename: resume.originalName,
+                    fileType: resume.fileType,
+                    fileSize: resume.fileSize,
                     status: resume.status,
+                    createdAt: resume.createdAt,
                     textLength: extractedText.length,
                     preview: extractedText.substring(0, 200) + '...',
                 },

@@ -279,6 +279,18 @@ export const authApi = {
    * Get CSRF token
    */
   getCsrfToken: () => api.get<ApiResponse<{ token: string }>>('/auth/csrf'),
+
+  /**
+   * Request password reset email
+   */
+  forgotPassword: (data: { email: string }) =>
+    api.post<ApiResponse<null>>('/auth/forgot-password', data),
+
+  /**
+   * Reset password with token
+   */
+  resetPassword: (data: { token: string; password: string }) =>
+    api.post<ApiResponse<null>>('/auth/reset-password', data),
 };
 
 // ============================================================================

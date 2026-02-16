@@ -89,6 +89,15 @@ const resumeSchema = new mongoose.Schema(
 // Allow user to have multiple resumes, but sort by createdAt
 resumeSchema.index({ user: 1, createdAt: -1 });
 
+// Virtual: expose originalName as originalFilename for frontend compatibility
+resumeSchema.virtual('originalFilename').get(function() {
+    return this.originalName;
+});
+
+// Include virtuals in JSON output
+resumeSchema.set('toJSON', { virtuals: true });
+resumeSchema.set('toObject', { virtuals: true });
+
 const Resume = mongoose.model('Resume', resumeSchema);
 
 module.exports = Resume;

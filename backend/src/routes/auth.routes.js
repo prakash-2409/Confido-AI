@@ -21,6 +21,9 @@ const {
     logout,
     getCurrentUser,
     updateProfile,
+    getCsrfToken,
+    forgotPassword,
+    resetPassword,
 } = require('../controllers/auth.controller');
 
 const router = express.Router();
@@ -53,9 +56,7 @@ const loginValidation = [
 ];
 
 const refreshTokenValidation = [
-    body('refreshToken')
-        .notEmpty()
-        .withMessage('Refresh token is required'),
+    // refreshToken can come from cookie, so body validation is optional
     validate,
 ];
 
@@ -91,7 +92,10 @@ const profileUpdateValidation = [
 router.post('/register', registerValidation, register);
 router.post('/login', loginValidation, login);
 router.post('/refresh', refreshTokenValidation, refreshAccessToken);
-router.post('/logout', refreshTokenValidation, logout);
+router.post('/logout', logout);
+router.get('/csrf', getCsrfToken);
+router.post('/forgot-password', forgotPassword);
+router.post('/reset-password', resetPassword);
 
 // Protected routes
 router.get('/me', protect, getCurrentUser);

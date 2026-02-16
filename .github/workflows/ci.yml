@@ -51,6 +51,7 @@ jobs:
         run: npm test --if-present
         env:
           NODE_ENV: test
+          PORT: 5000
           MONGODB_URI: mongodb://localhost:27017/career-ai-test
           JWT_ACCESS_SECRET: test-access-secret-key-for-ci
           JWT_REFRESH_SECRET: test-refresh-secret-key-for-ci
@@ -120,7 +121,7 @@ jobs:
 
       - name: Run tests
         working-directory: ./ml-service
-        run: pytest --if-present || echo "No tests found"
+        run: pytest || echo "No tests found"
 
   # Docker Build Test
   docker-build:

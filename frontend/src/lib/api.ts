@@ -143,8 +143,10 @@ export interface User {
   targetRole?: string | null;
   experienceYears?: number;
   isEmailVerified?: boolean;
+  role?: 'user' | 'admin';
   profileCompleteness: number;
   hasUploadedResume?: boolean;
+  subscription?: { plan: string };
   createdAt?: string;
   updatedAt?: string;
 }
@@ -287,10 +289,22 @@ export const authApi = {
     api.post<ApiResponse<null>>('/auth/forgot-password', data),
 
   /**
-   * Reset password with token
+   * Reset password with token or code
    */
-  resetPassword: (data: { token: string; password: string }) =>
+  resetPassword: (data: { token?: string; code?: string; email?: string; password: string }) =>
     api.post<ApiResponse<null>>('/auth/reset-password', data),
+
+  /**
+   * Verify email with code or token
+   */
+  verifyEmail: (data: { code?: string; token?: string }) =>
+    api.post<ApiResponse<{ user: User }>>('/auth/verify-email', data),
+
+  /**
+   * Resend verification email
+   */
+  resendVerification: () =>
+    api.post<ApiResponse<null>>('/auth/resend-verification'),
 };
 
 // ============================================================================
@@ -330,6 +344,12 @@ export const resumeApi = {
    * Delete resume
    */
   delete: (id: string) => api.delete<ApiResponse<null>>(`/resume/${id}`),
+
+  /**
+   * Get AI-powered resume improvement suggestions
+   */
+  getSuggestions: (data: { resume_text: string; job_description: string; target_role?: string }) =>
+    api.post<ApiResponse<any>>('/resume/suggestions', data),
 };
 
 // ============================================================================
@@ -415,6 +435,94 @@ export const isAuthError = (error: unknown): boolean => {
     return status === 401 || status === 403;
   }
   return false;
+};
+
+// ============================================================================
+// SUBSCRIPTION API
+// ============================================================================
+
+export interface SubscriptionPlan {
+  name: string;
+  features: string[];
+  resumeUploads: number;
+  interviewsPerMonth: number;
+  priceId?: string;
+}
+
+export interface SubscriptionStatus {
+  plan: string;
+  planDetails: SubscriptionPlan;
+  stripeCustomerId: string | null;
+  currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
+}
+
+export const subscriptionApi = {
+  getPlans: () =>
+    api.get<ApiResponse<{ plans: Record<string, SubscriptionPlan> }>>('/subscription/plans'),
+
+  getStatus: () =>
+    api.get<ApiResponse<SubscriptionStatus>>('/subscription/status'),
+
+  createCheckout: (plan: string) =>
+    api.post<ApiResponse<{ sessionId: string; url: string }>>('/subscription/checkout', { plan }),
+
+  createPortal: () =>
+    api.post<ApiResponse<{ url: string }>>('/subscription/portal'),
+
+  cancel: () =>
+    api.post<ApiResponse<null>>('/subscription/cancel'),
+};
+
+// ============================================================================
+// ADMIN API
+// ============================================================================
+
+export const adminApi = {
+  getStats: () =>
+    api.get<ApiResponse<any>>('/admin/stats'),
+
+  getUsers: (params?: { page?: number; limit?: number; search?: string; plan?: string }) =>
+    api.get<ApiResponse<any>>('/admin/users', { params }),
+
+  getAnalytics: (days?: number) =>
+    api.get<ApiResponse<any>>('/admin/analytics', { params: { days } }),
+
+  toggleUserStatus: (userId: string) =>
+    api.put<ApiResponse<any>>(`/admin/users/${userId}/toggle-status`),
+};
+
+// ============================================================================
+// GROWTH FEATURES API (P3)
+// ============================================================================
+
+export const growthApi = {
+  // Video Interviews
+  getVideoInterviews: () =>
+    api.get<ApiResponse<any>>('/growth/video-interviews'),
+
+  createVideoInterview: (data: { title: string; targetRole: string; company?: string }) =>
+    api.post<ApiResponse<any>>('/growth/video-interviews', data),
+
+  getVideoInterviewById: (id: string) =>
+    api.get<ApiResponse<any>>(`/growth/video-interviews/${id}`),
+
+  // Learning Roadmaps
+  getRoadmaps: () =>
+    api.get<ApiResponse<any>>('/growth/roadmaps'),
+
+  createRoadmap: (data: { targetRole: string; currentLevel?: string }) =>
+    api.post<ApiResponse<any>>('/growth/roadmaps', data),
+
+  updateMilestone: (roadmapId: string, milestoneId: string, status: string) =>
+    api.put<ApiResponse<any>>(`/growth/roadmaps/${roadmapId}/milestones/${milestoneId}`, { status }),
+
+  // Company-Specific Interviews
+  getCompanies: (search?: string) =>
+    api.get<ApiResponse<any>>('/growth/companies', { params: { search } }),
+
+  getCompanyInterviews: (company: string, role?: string) =>
+    api.get<ApiResponse<any>>(`/growth/companies/${company}/interviews`, { params: { role } }),
 };
 
 export default api;

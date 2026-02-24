@@ -18,6 +18,15 @@ const {
     getExpiryTime,
 } = require('../utils/jwt');
 const config = require('../config/env');
+const logger = require('../config/logger');
+const {
+    sendVerificationEmail,
+    sendPasswordResetEmail,
+    sendWelcomeEmail,
+    generateVerificationCode,
+    generateSecureToken,
+    hashToken,
+} = require('../services/emailService');
 
 // ============================================================
 // COOKIE HELPERS
@@ -82,18 +91,30 @@ const register = async (req, res, next) => {
             name,
         });
 
-        // 4. Generate tokens
+        // 4. Generate and store email verification code/token
+        const verificationCode = generateVerificationCode();
+        const verificationToken = generateSecureToken();
+        user.emailVerificationCode = hashToken(verificationCode);
+        user.emailVerificationToken = hashToken(verificationToken);
+        user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+        // 5. Generate tokens
         const { accessToken, refreshToken } = generateTokenPair(user);
 
-        // 5. Store refresh token in database
+        // 6. Store refresh token in database
         const refreshExpiryMs = getExpiryTime(config.jwt.refreshExpiresIn);
         user.addRefreshToken(refreshToken, refreshExpiryMs);
         await user.save();
 
-        // 6. Set HttpOnly cookies
+        // 7. Send verification email (non-blocking)
+        sendVerificationEmail(user, verificationCode, verificationToken).catch(err => {
+            logger.error('Failed to send verification email', { userId: user._id, error: err.message });
+        });
+
+        // 8. Set HttpOnly cookies
         setTokenCookies(res, accessToken, refreshToken);
 
-        // 7. Send response (no tokens in body - they're in cookies)
+        // 9. Send response (no tokens in body - they're in cookies)
         res.status(201).json({
             success: true,
             message: 'User registered successfully',
@@ -400,8 +421,32 @@ const forgotPassword = async (req, res, next) => {
             throw new ApiError(400, 'Email is required');
         }
 
-        // Security: always return success regardless of whether the email exists
-        // In production, integrate an email service (SendGrid/SES) to send reset links
+        // Find user by email
+        const user = await User.findByEmail(email);
+
+        // Always return success for security (don't reveal if email exists)
+        if (!user) {
+            return res.status(200).json({
+                success: true,
+                message: 'If an account with that email exists, a password reset link has been sent.',
+            });
+        }
+
+        // Generate reset code and token
+        const resetCode = generateVerificationCode();
+        const resetToken = generateSecureToken();
+
+        // Store hashed versions in DB
+        user.passwordResetCode = hashToken(resetCode);
+        user.passwordResetToken = hashToken(resetToken);
+        user.passwordResetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+        await user.save();
+
+        // Send password reset email
+        await sendPasswordResetEmail(user, resetCode, resetToken);
+
+        logger.info('Password reset requested', { userId: user._id, email: user.email });
+
         res.status(200).json({
             success: true,
             message: 'If an account with that email exists, a password reset link has been sent.',
@@ -412,18 +457,170 @@ const forgotPassword = async (req, res, next) => {
 };
 
 /**
- * Reset password
+ * Reset password with code or token
  * POST /api/v1/auth/reset-password
  */
 const resetPassword = async (req, res, next) => {
     try {
-        const { token, password } = req.body;
-        if (!token || !password) {
-            throw new ApiError(400, 'Token and new password are required');
+        const { token, code, email, password } = req.body;
+
+        if (!password || password.length < 8) {
+            throw new ApiError(400, 'New password must be at least 8 characters');
         }
 
-        // TODO: Implement token verification and password reset when email service is added
-        throw new ApiError(501, 'Password reset is coming soon. Please contact support.');
+        if (!token && !code) {
+            throw new ApiError(400, 'Reset token or code is required');
+        }
+
+        // Build query to find the user
+        let query = {};
+        if (token) {
+            query.passwordResetToken = hashToken(token);
+        } else if (code && email) {
+            query.passwordResetCode = hashToken(code);
+            query.email = email.toLowerCase();
+        } else {
+            throw new ApiError(400, 'Email is required when using reset code');
+        }
+
+        // Find user with valid, non-expired reset token
+        const user = await User.findOne({
+            ...query,
+            passwordResetExpires: { $gt: new Date() },
+        }).select('+passwordResetCode +passwordResetToken +passwordResetExpires');
+
+        if (!user) {
+            throw new ApiError(400, 'Invalid or expired reset token');
+        }
+
+        // Update password
+        user.password = password;
+        user.passwordResetCode = undefined;
+        user.passwordResetToken = undefined;
+        user.passwordResetExpires = undefined;
+        // Invalidate all existing refresh tokens (force re-login everywhere)
+        user.refreshTokens = [];
+        await user.save();
+
+        logger.info('Password reset successful', { userId: user._id });
+
+        res.status(200).json({
+            success: true,
+            message: 'Password has been reset successfully. Please log in with your new password.',
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Verify email with code or token
+ * POST /api/v1/auth/verify-email
+ */
+const verifyEmail = async (req, res, next) => {
+    try {
+        const { code, token } = req.body;
+
+        if (!code && !token) {
+            throw new ApiError(400, 'Verification code or token is required');
+        }
+
+        // Build query
+        let query = {};
+        if (token) {
+            query.emailVerificationToken = hashToken(token);
+        } else if (code) {
+            // Need user context from auth middleware
+            if (!req.userId) {
+                throw new ApiError(401, 'Please log in to verify your email');
+            }
+            query._id = req.userId;
+            query.emailVerificationCode = hashToken(code);
+        }
+
+        const user = await User.findOne({
+            ...query,
+            emailVerificationExpires: { $gt: new Date() },
+        }).select('+emailVerificationCode +emailVerificationToken +emailVerificationExpires');
+
+        if (!user) {
+            throw new ApiError(400, 'Invalid or expired verification code');
+        }
+
+        // Mark email as verified
+        user.isEmailVerified = true;
+        user.emailVerificationCode = undefined;
+        user.emailVerificationToken = undefined;
+        user.emailVerificationExpires = undefined;
+        
+        // Update profile completeness
+        if (user.profileCompleteness < 50) {
+            user.profileCompleteness = 50;
+        }
+        
+        await user.save();
+
+        // Send welcome email
+        sendWelcomeEmail(user).catch(err => {
+            logger.error('Failed to send welcome email', { userId: user._id, error: err.message });
+        });
+
+        logger.info('Email verified', { userId: user._id });
+
+        res.status(200).json({
+            success: true,
+            message: 'Email verified successfully!',
+            data: {
+                user: {
+                    id: user._id,
+                    email: user.email,
+                    name: user.name,
+                    isEmailVerified: true,
+                },
+            },
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Resend verification email
+ * POST /api/v1/auth/resend-verification
+ */
+const resendVerification = async (req, res, next) => {
+    try {
+        const userId = req.userId;
+        const user = await User.findById(userId);
+
+        if (!user) {
+            throw new ApiError(404, 'User not found');
+        }
+
+        if (user.isEmailVerified) {
+            return res.status(200).json({
+                success: true,
+                message: 'Email is already verified',
+            });
+        }
+
+        // Generate new code and token
+        const verificationCode = generateVerificationCode();
+        const verificationToken = generateSecureToken();
+        user.emailVerificationCode = hashToken(verificationCode);
+        user.emailVerificationToken = hashToken(verificationToken);
+        user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        await user.save();
+
+        // Send email
+        await sendVerificationEmail(user, verificationCode, verificationToken);
+
+        logger.info('Verification email resent', { userId: user._id });
+
+        res.status(200).json({
+            success: true,
+            message: 'Verification email sent successfully',
+        });
     } catch (error) {
         next(error);
     }
@@ -439,4 +636,6 @@ module.exports = {
     getCsrfToken,
     forgotPassword,
     resetPassword,
+    verifyEmail,
+    resendVerification,
 };

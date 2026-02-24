@@ -464,8 +464,8 @@ const resetPassword = async (req, res, next) => {
     try {
         const { token, code, email, password } = req.body;
 
-        if (!password || password.length < 6) {
-            throw new ApiError(400, 'New password must be at least 6 characters');
+        if (!password || password.length < 8) {
+            throw new ApiError(400, 'New password must be at least 8 characters');
         }
 
         if (!token && !code) {

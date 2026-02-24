@@ -62,8 +62,13 @@ analyticsEventSchema.statics.track = async function (userId, event, metadata = {
             date: new Date(),
         });
     } catch (error) {
-        // Don't throw on analytics failures
-        console.error('Analytics tracking error:', error.message);
+        // Don't throw on analytics failures, but include context for debugging
+        console.error('Analytics tracking error:', {
+            userId,
+            event,
+            metadata,
+            error: error && error.message ? error.message : error,
+        });
         return null;
     }
 };

@@ -17,11 +17,16 @@ import {
   Menu,
   X,
   Sparkles,
+  CreditCard,
+  Shield,
+  Map,
+  Building2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { useState } from 'react';
 
 const navItems = [
@@ -41,6 +46,21 @@ const navItems = [
     icon: MessageSquare,
   },
   {
+    title: 'Subscription',
+    href: '/dashboard/subscription',
+    icon: CreditCard,
+  },
+  {
+    title: 'Learning Roadmap',
+    href: '/dashboard/roadmap',
+    icon: Map,
+  },
+  {
+    title: 'Company Prep',
+    href: '/dashboard/companies',
+    icon: Building2,
+  },
+  {
     title: 'Profile',
     href: '/dashboard/profile',
     icon: User,
@@ -50,6 +70,17 @@ const navItems = [
 function NavContent({ onItemClick }: { onItemClick?: () => void }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+
+  // Build nav items dynamically based on user role
+  const allNavItems = [
+    ...navItems,
+    // Admin link only shown to admin users
+    ...((user as any)?.role === 'admin' ? [{
+      title: 'Admin',
+      href: '/dashboard/admin',
+      icon: Shield,
+    }] : []),
+  ];
 
   return (
     <div className="flex flex-col h-full">
@@ -65,7 +96,7 @@ function NavContent({ onItemClick }: { onItemClick?: () => void }) {
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {navItems.map((item) => {
+        {allNavItems.map((item) => {
           const isActive = pathname === item.href;
           return (
             <Link
@@ -90,7 +121,7 @@ function NavContent({ onItemClick }: { onItemClick?: () => void }) {
 
       {/* User Section */}
       <div className="p-4">
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-3 mb-3">
           <Avatar className="h-10 w-10">
             <AvatarFallback className="bg-primary/10 text-primary">
               {user?.name?.charAt(0).toUpperCase() || 'U'}
@@ -100,6 +131,7 @@ function NavContent({ onItemClick }: { onItemClick?: () => void }) {
             <p className="text-sm font-medium truncate">{user?.name}</p>
             <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
           </div>
+          <ThemeToggle />
         </div>
         <Button
           variant="outline"

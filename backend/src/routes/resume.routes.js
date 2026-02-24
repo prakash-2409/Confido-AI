@@ -17,7 +17,7 @@ const {
     getResumeById,
     deleteResume,
 } = require('../controllers/resume.controller');
-const { analyzeResumeAgainstJob } = require('../controllers/analysis.controller');
+const { analyzeResumeAgainstJob, getResumeSuggestions } = require('../controllers/analysis.controller');
 
 const router = express.Router();
 
@@ -29,6 +29,9 @@ router.post('/upload', upload.single('resume'), uploadResume);
 
 // Analysis
 router.post('/:id/analyze', analyzeResumeAgainstJob);
+
+// AI Resume Suggestions
+router.post('/suggestions', getResumeSuggestions);
 
 // CRUD operations
 router.get('/', getMyResumes);

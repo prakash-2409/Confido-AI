@@ -77,3 +77,45 @@ class ResumeSuggestionsResponse(BaseModel):
     keyword_integration: List[Dict] = []
     formatting_tips: List[str] = []
     action_items: List[str] = []
+
+# ============================================================
+# 4-Round Mock Interview Schemas
+# ============================================================
+
+class ProjectInfo(BaseModel):
+    """Schema for project information extracted from resume"""
+    name: str
+    technologies: List[str] = []
+    description: str
+
+class ResumeContextRequest(BaseModel):
+    """Request schema for extracting structured context from resume"""
+    resume_text: str
+
+class ResumeContextResponse(BaseModel):
+    """Response schema for resume context extraction"""
+    projects: List[ProjectInfo] = []
+    skills: List[str] = []
+    achievements: List[str] = []
+
+class QuestionGenerationRequest(BaseModel):
+    """Request schema for generating dynamic interview questions"""
+    round_number: int  # 1-4
+    job_role: str
+    job_description: str = ""
+    resume_context: Optional[Dict] = None  # For Round 2
+    conversation_history: List[Dict] = []  # Previous Q&As in current round
+    question_index: int = 0  # For Round 1
+    previous_scores: List[float] = []  # For adaptive difficulty in Round 3
+
+class QuestionGenerationResponse(BaseModel):
+    """Response schema for generated questions"""
+    question_text: str
+    category: str
+    difficulty: str
+    expected_keywords: List[str] = []
+    evaluation_criteria: Dict = {}
+    problem_constraints: Optional[str] = None  # For Round 3
+    examples: List[str] = []  # For Round 3
+    generated_from: Optional[str] = None  # "llm", "template", "question_bank"
+

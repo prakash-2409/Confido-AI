@@ -49,6 +49,96 @@ const analyzeResume = async (resumeText, jobDescription) => {
     }
 };
 
+/**
+ * Extract structured context from resume text using LLM
+ * @param {string} resumeText - Extracted text from resume
+ * @returns {Promise<Object>} - Structured context (projects, skills, achievements)
+ */
+const extractResumeContext = async (resumeText) => {
+    try {
+        const response = await mlClient.post('/interview/extract-resume-context', {
+            resume_text: resumeText,
+        });
+
+        // Transform snake_case to camelCase
+        return {
+            projects: response.data.projects || [],
+            skills: response.data.skills || [],
+            achievements: response.data.achievements || [],
+        };
+    } catch (error) {
+        console.error('ML Service Error (extractResumeContext):', error.message);
+
+        if (error.code === 'ECONNREFUSED') {
+            throw new ApiError(503, 'ML Service is unavailable. Please try again later.');
+        }
+
+        if (error.response?.status === 400) {
+            throw new ApiError(400, error.response.data?.detail || 'Invalid resume text');
+        }
+
+        throw new ApiError(500, 'Failed to extract resume context');
+    }
+};
+
+/**
+ * Generate dynamic interview question based on round and context
+ * @param {Object} params - Question generation parameters
+ * @param {number} params.roundNumber - Current round (1-4)
+ * @param {string} params.jobRole - Target job role
+ * @param {string} params.jobDescription - Job description text
+ * @param {Object} params.resumeContext - Resume context (for Round 2)
+ * @param {Array} params.conversationHistory - Previous Q&As in current round
+ * @param {number} params.questionIndex - Question index (for Round 1)
+ * @param {Array} params.previousScores - Previous answer scores (for adaptive difficulty)
+ * @returns {Promise<Object>} - Generated question details
+ */
+const generateInterviewQuestion = async ({
+    roundNumber,
+    jobRole,
+    jobDescription = '',
+    resumeContext = null,
+    conversationHistory = [],
+    questionIndex = 0,
+    previousScores = []
+}) => {
+    try {
+        const response = await mlClient.post('/interview/generate-question', {
+            round_number: roundNumber,
+            job_role: jobRole,
+            job_description: jobDescription,
+            resume_context: resumeContext,
+            conversation_history: conversationHistory,
+            question_index: questionIndex,
+            previous_scores: previousScores
+        });
+
+        // Transform snake_case to camelCase
+        return {
+            questionText: response.data.question_text,
+            category: response.data.category,
+            difficulty: response.data.difficulty,
+            expectedKeywords: response.data.expected_keywords || [],
+            evaluationCriteria: response.data.evaluation_criteria || {},
+            problemConstraints: response.data.problem_constraints,
+            examples: response.data.examples || [],
+            generatedFrom: response.data.generated_from
+        };
+    } catch (error) {
+        console.error('ML Service Error (generateInterviewQuestion):', error.message);
+
+        if (error.code === 'ECONNREFUSED') {
+            throw new ApiError(503, 'ML Service is unavailable. Please try again later.');
+        }
+
+        if (error.response?.status === 400) {
+            throw new ApiError(400, error.response.data?.detail || 'Invalid question generation request');
+        }
+
+        throw new ApiError(500, 'Failed to generate interview question');
+    }
+};
+
 // ============================================================
 // Interview Evaluation
 // ============================================================
@@ -206,6 +296,8 @@ const checkHealth = async () => {
 
 module.exports = {
     analyzeResume,
+    extractResumeContext,
+    generateInterviewQuestion,
     evaluateInterviewAnswer,
     generateInterviewSummary,
     getResumeSuggestions,

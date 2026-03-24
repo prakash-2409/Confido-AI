@@ -1,0 +1,123 @@
+[
+  {
+    "id": "dsa_001",
+    "question_text": "Given an array of integers, find two numbers that add up to a specific target. Return the indices of these two numbers.\n\nExample: Input: nums = [2, 7, 11, 15], target = 9\nOutput: [0, 1] (because nums[0] + nums[1] = 2 + 7 = 9)\n\nHow would you approach this problem? Explain your thought process and solution.",
+    "difficulty": "easy",
+    "category": "technical",
+    "expected_keywords": ["hash map", "array", "time complexity", "O(n)", "two pointers", "iteration"],
+    "constraints": "Array length: 2 to 10^4, Each element: -10^9 to 10^9",
+    "examples": [
+      "Input: [2, 7, 11, 15], target = 9 → Output: [0, 1]",
+      "Input: [3, 2, 4], target = 6 → Output: [1, 2]"
+    ]
+  },
+  {
+    "id": "dsa_002",
+    "question_text": "Write a function to reverse a string. Explain your approach and discuss the time and space complexity.\n\nExample: Input: 'hello' → Output: 'olleh'\n\nWhat method would you use and why?",
+    "difficulty": "easy",
+    "category": "technical",
+    "expected_keywords": ["string", "reverse", "two pointers", "in-place", "O(n)", "iteration"],
+    "constraints": "String length: 0 to 10^5",
+    "examples": [
+      "Input: 'hello' → Output: 'olleh'",
+      "Input: 'interview' → Output: 'weivretni'"
+    ]
+  },
+  {
+    "id": "dsa_003",
+    "question_text": "Implement a function to check if a string has all unique characters. You cannot use additional data structures.\n\nExample: Input: 'abcde' → Output: true (all unique)\nInput: 'hello' → Output: false (l repeats)\n\nDescribe your approach and analyze the complexity.",
+    "difficulty": "easy",
+    "category": "technical",
+    "expected_keywords": ["unique", "hash set", "characters", "boolean", "iteration", "comparison"],
+    "constraints": "String length: 0 to 10^5, ASCII characters only",
+    "examples": [
+      "Input: 'abcde' → Output: true",
+      "Input: 'hello' → Output: false"
+    ]
+  },
+  {
+    "id": "dsa_004",
+    "question_text": "Given a linked list, detect if it has a cycle in it. A cycle exists if a node can be reached again by continuously following the next pointer.\n\nExample: 1→2→3→4→2 (cycle back to node 2)\n\nHow would you solve this? Explain the algorithm and why it works.",
+    "difficulty": "medium",
+    "category": "technical",
+    "expected_keywords": ["linked list", "cycle", "Floyd's algorithm", "two pointers", "fast and slow", "O(n)"],
+    "constraints": "Number of nodes: 0 to 10^4",
+    "examples": [
+      "Input: 1→2→3→4→2 (cycle) → Output: true",
+      "Input: 1→2→3→4→null → Output: false"
+    ]
+  },
+  {
+    "id": "dsa_005",
+    "question_text": "Design and implement a function to find the longest substring without repeating characters.\n\nExample: Input: 'abcabcbb' → Output: 3 (substring 'abc')\nInput: 'bbbbb' → Output: 1 (substring 'b')\n\nExplain your approach, data structures used, and time complexity.",
+    "difficulty": "medium",
+    "category": "technical",
+    "expected_keywords": ["sliding window", "hash map", "substring", "two pointers", "O(n)", "longest"],
+    "constraints": "String length: 0 to 5×10^4",
+    "examples": [
+      "Input: 'abcabcbb' → Output: 3",
+      "Input: 'bbbbb' → Output: 1",
+      "Input: 'pwwkew' → Output: 3"
+    ]
+  },
+  {
+    "id": "dsa_006",
+    "question_text": "Implement a function to find the kth largest element in an unsorted array.\n\nExample: Input: [3, 2, 1, 5, 6, 4], k = 2 → Output: 5 (2nd largest)\n\nWhat approach would you take? Discuss different solutions and their trade-offs.",
+    "difficulty": "medium",
+    "category": "technical",
+    "expected_keywords": ["heap", "quickselect", "sorting", "priority queue", "O(n log k)", "partition"],
+    "constraints": "Array length: 1 to 10^5, k: 1 to array length",
+    "examples": [
+      "Input: [3, 2, 1, 5, 6, 4], k = 2 → Output: 5",
+      "Input: [3, 2, 3, 1, 2, 4, 5, 5, 6], k = 4 → Output: 4"
+    ]
+  },
+  {
+    "id": "dsa_007",
+    "question_text": "Given the root of a binary tree, determine if it is a valid Binary Search Tree (BST).\n\nA valid BST is defined as:\n- Left subtree contains only nodes with keys < node's key\n- Right subtree contains only nodes with keys > node's key\n- Both subtrees must also be BSTs\n\nHow would you validate this? Explain your approach.",
+    "difficulty": "medium",
+    "category": "technical",
+    "expected_keywords": ["binary search tree", "recursion", "inorder traversal", "valid", "tree", "DFS"],
+    "constraints": "Number of nodes: 1 to 10^4",
+    "examples": [
+      "Input: [2,1,3] → Output: true",
+      "Input: [5,1,4,null,null,3,6] → Output: false"
+    ]
+  },
+  {
+    "id": "dsa_008",
+    "question_text": "Design a data structure that supports inserting, deleting, and getting a random element in O(1) time complexity.\n\nOperations:\n- insert(val): Inserts an item val to the set if not already present\n- remove(val): Removes an item val from the set if present\n- getRandom(): Returns a random element from the current set\n\nExplain your design and why it achieves O(1) for all operations.",
+    "difficulty": "hard",
+    "category": "technical",
+    "expected_keywords": ["hash map", "array", "O(1)", "random", "design", "data structure", "index"],
+    "constraints": "All operations must be O(1) average time",
+    "examples": [
+      "insert(1) → getRandom() returns 1",
+      "insert(2) → getRandom() returns 1 or 2 randomly"
+    ]
+  },
+  {
+    "id": "dsa_009",
+    "question_text": "Given a matrix of integers, find the maximum sum of a rectangular sub-matrix.\n\nExample: \nInput: [[1, 2, -1, -4, -20],\n        [-8, -3, 4, 2, 1],\n        [3, 8, 10, 1, 3]]\nOutput: 29 (sub-matrix from [1,1] to [2,3])\n\nDescribe your approach and optimize for the best time complexity.",
+    "difficulty": "hard",
+    "category": "technical",
+    "expected_keywords": ["dynamic programming", "Kadane's algorithm", "prefix sum", "matrix", "optimization", "2D array"],
+    "constraints": "Matrix dimensions: 1 to 100 × 1 to 100",
+    "examples": [
+      "Input: [[2, 1], [-3, 4]] → Output: 5"
+    ]
+  },
+  {
+    "id": "dsa_010",
+    "question_text": "Implement an LRU (Least Recently Used) Cache with get and put operations in O(1) time complexity.\n\nOperations:\n- get(key): Get the value of the key if it exists, otherwise return -1\n- put(key, value): Update or insert the value. If cache is full, evict the least recently used item.\n\nExplain your data structure choices and implementation.",
+    "difficulty": "hard",
+    "category": "technical",
+    "expected_keywords": ["LRU cache", "hash map", "doubly linked list", "O(1)", "design", "eviction policy"],
+    "constraints": "Capacity: 1 to 3000, Operations: up to 10^5",
+    "examples": [
+      "cache = LRUCache(2)",
+      "put(1, 1) → put(2, 2) → get(1) returns 1",
+      "put(3, 3) evicts key 2 → get(2) returns -1"
+    ]
+  }
+]

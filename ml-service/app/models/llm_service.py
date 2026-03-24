@@ -54,7 +54,7 @@ def is_llm_available() -> bool:
     return False
 
 
-def _call_openai(system_prompt: str, user_prompt: str, max_tokens: int = 1000) -> Optional[str]:
+def _call_openai(system_prompt: str, user_prompt: str, max_tokens: int = 1000, temperature: float = 0.7) -> Optional[str]:
     """Call OpenAI API"""
     try:
         response = openai_client.chat.completions.create(
@@ -64,7 +64,7 @@ def _call_openai(system_prompt: str, user_prompt: str, max_tokens: int = 1000) -
                 {"role": "user", "content": user_prompt}
             ],
             max_tokens=max_tokens,
-            temperature=0.7,
+            temperature=temperature,
         )
         return response.choices[0].message.content
     except Exception as e:
@@ -72,7 +72,7 @@ def _call_openai(system_prompt: str, user_prompt: str, max_tokens: int = 1000) -
         return None
 
 
-def _call_gemini(system_prompt: str, user_prompt: str, max_tokens: int = 1000) -> Optional[str]:
+def _call_gemini(system_prompt: str, user_prompt: str, max_tokens: int = 1000, temperature: float = 0.7) -> Optional[str]:
     """Call Google Gemini API"""
     try:
         model = genai.GenerativeModel(
@@ -83,7 +83,7 @@ def _call_gemini(system_prompt: str, user_prompt: str, max_tokens: int = 1000) -
             user_prompt,
             generation_config=genai.GenerationConfig(
                 max_output_tokens=max_tokens,
-                temperature=0.7,
+                temperature=temperature,
             )
         )
         return response.text
@@ -92,12 +92,12 @@ def _call_gemini(system_prompt: str, user_prompt: str, max_tokens: int = 1000) -
         return None
 
 
-def call_llm(system_prompt: str, user_prompt: str, max_tokens: int = 1000) -> Optional[str]:
+def call_llm(system_prompt: str, user_prompt: str, max_tokens: int = 1000, temperature: float = 0.7) -> Optional[str]:
     """Call the configured LLM provider"""
     if LLM_PROVIDER == "openai" and openai_client:
-        return _call_openai(system_prompt, user_prompt, max_tokens)
+        return _call_openai(system_prompt, user_prompt, max_tokens, temperature)
     elif LLM_PROVIDER == "gemini" and genai:
-        return _call_gemini(system_prompt, user_prompt, max_tokens)
+        return _call_gemini(system_prompt, user_prompt, max_tokens, temperature)
     return None
 
 

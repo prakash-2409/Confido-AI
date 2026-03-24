@@ -1,28 +1,48 @@
 from fastapi import FastAPI, HTTPException
 from app.models.schemas import (
-    ResumeRequest, 
-    ATSAnalysisResponse, 
+    ResumeRequest,
+    ATSAnalysisResponse,
     HealthResponse,
     InterviewAnswerRequest,
     InterviewAnswerResponse,
     InterviewSummaryRequest,
     InterviewSummaryResponse,
     ResumeSuggestionsRequest,
-    ResumeSuggestionsResponse
+    ResumeSuggestionsResponse,
+    ResumeContextRequest,
+    ResumeContextResponse,
+    QuestionGenerationRequest,
+    QuestionGenerationResponse
 )
 from app.models.ats import ats_analyzer
 from app.models.interview_evaluator import interview_evaluator
 from app.models.llm_service import (
-    is_llm_available, 
-    enhance_answer_evaluation, 
+    is_llm_available,
+    enhance_answer_evaluation,
     enhance_interview_summary,
     generate_resume_suggestions
 )
+from app.models.resume_context_extractor import extract_resume_context
+from app.models import dynamic_question_generator
 import uvicorn
 import logging
+import json
+import os
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Load question bank for Round 3 (DSA problems)
+QUESTION_BANK = []
+try:
+    question_bank_path = os.path.join(os.path.dirname(__file__), "data", "questionBank.json")
+    with open(question_bank_path, "r") as f:
+        QUESTION_BANK = json.load(f)
+    logger.info(f"Loaded {len(QUESTION_BANK)} questions from question bank")
+except FileNotFoundError:
+    logger.warning("Question bank file not found. Round 3 questions will not be available.")
+except Exception as e:
+    logger.error(f"Error loading question bank: {e}")
 
 app = FastAPI(
     title="Career AI - ML Service",
@@ -203,6 +223,125 @@ async def generate_interview_summary(request: InterviewSummaryRequest):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Summary generation error: {str(e)}")
+
+
+@app.post("/interview/extract-resume-context", response_model=ResumeContextResponse)
+async def extract_resume_context_endpoint(request: ResumeContextRequest):
+    """
+    Extract structured context from resume text using LLM
+
+    For 4-round mock interviews, this extracts:
+    - Projects with technologies and descriptions
+    - Technical skills
+    - Achievements with metrics
+
+    This context is used to generate personalized questions in Round 2 (Resume Deep Dive)
+    """
+    try:
+        if not request.resume_text or len(request.resume_text.strip()) < 50:
+            raise HTTPException(
+                status_code=400,
+                detail="Resume text is required and must be at least 50 characters"
+            )
+
+        if not is_llm_available():
+            raise HTTPException(
+                status_code=503,
+                detail="LLM service not configured. Resume context extraction requires LLM."
+            )
+
+        logger.info(f"Extracting context from resume ({len(request.resume_text)} chars)")
+        context = extract_resume_context(request.resume_text)
+
+        return ResumeContextResponse(
+            projects=context.get("projects", []),
+            skills=context.get("skills", []),
+            achievements=context.get("achievements", [])
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Resume context extraction error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Context extraction error: {str(e)}")
+
+
+@app.post("/interview/generate-question", response_model=QuestionGenerationResponse)
+async def generate_question_endpoint(request: QuestionGenerationRequest):
+    """
+    Generate dynamic interview question based on round and context
+
+    Round-specific generation:
+    - Round 1 (Introduction): Pre-defined warmup questions
+    - Round 2 (Resume Deep Dive): LLM-generated personalized questions from resume
+    - Round 3 (Technical/DSA): Adaptive difficulty from question bank
+    - Round 4 (Behavioral): STAR method questions
+
+    This enables conversational, context-aware interview flow
+    """
+    try:
+        if request.round_number < 1 or request.round_number > 4:
+            raise HTTPException(
+                status_code=400,
+                detail="Round number must be between 1 and 4"
+            )
+
+        if not request.job_role:
+            raise HTTPException(
+                status_code=400,
+                detail="Job role is required"
+            )
+
+        # Round 2 requires resume context
+        if request.round_number == 2 and not request.resume_context:
+            raise HTTPException(
+                status_code=400,
+                detail="Resume context is required for Round 2 (Resume Deep Dive)"
+            )
+
+        # Round 3 requires question bank
+        if request.round_number == 3 and not QUESTION_BANK:
+            raise HTTPException(
+                status_code=503,
+                detail="Question bank not loaded. Round 3 questions unavailable."
+            )
+
+        logger.info(f"Generating question for Round {request.round_number}, Job Role: {request.job_role}")
+
+        # Generate question using dynamic question generator
+        question = dynamic_question_generator.generate_question(
+            round_number=request.round_number,
+            job_role=request.job_role,
+            job_description=request.job_description,
+            resume_context=request.resume_context,
+            conversation_history=request.conversation_history,
+            question_bank=QUESTION_BANK if request.round_number == 3 else None,
+            question_index=request.question_index,
+            previous_scores=request.previous_scores
+        )
+
+        if not question:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to generate question for Round {request.round_number}"
+            )
+
+        return QuestionGenerationResponse(
+            question_text=question.get("question_text"),
+            category=question.get("category"),
+            difficulty=question.get("difficulty"),
+            expected_keywords=question.get("expected_keywords", []),
+            evaluation_criteria=question.get("evaluation_criteria", {}),
+            problem_constraints=question.get("problem_constraints"),
+            examples=question.get("examples", []),
+            generated_from=question.get("generated_from", "template")
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Question generation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Question generation error: {str(e)}")
 
 
 # ============================================================

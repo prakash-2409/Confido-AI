@@ -134,7 +134,14 @@ const interviewSchema = new mongoose.Schema(
         resume: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Resume',
-            default: null, // Optional - can start interview without resume
+            default: null, // Optional for classic, required for 4-round-mock
+        },
+
+        // Interview Type (for 4-round mock interview feature)
+        interviewType: {
+            type: String,
+            enum: ['classic', '4-round-mock'],
+            default: 'classic',
         },
 
         // Job Context
@@ -173,6 +180,82 @@ const interviewSchema = new mongoose.Schema(
         totalQuestions: {
             type: Number,
             default: 0,
+        },
+
+        // 4-Round Mock Interview Fields
+        currentRound: {
+            type: Number,
+            min: 1,
+            max: 4,
+            default: 1,
+        },
+        rounds: [{
+            roundNumber: {
+                type: Number,
+                min: 1,
+                max: 4,
+            },
+            roundName: {
+                type: String,
+                enum: ['Introduction', 'Resume Deep Dive', 'Technical', 'Behavioral'],
+            },
+            status: {
+                type: String,
+                enum: ['not_started', 'in_progress', 'completed'],
+                default: 'not_started',
+            },
+            startedAt: {
+                type: Date,
+                default: null,
+            },
+            completedAt: {
+                type: Date,
+                default: null,
+            },
+            roundScore: {
+                type: Number,
+                min: 0,
+                max: 100,
+                default: null,
+            },
+            roundFeedback: {
+                type: String,
+                default: null,
+            },
+            conversationHistory: [{
+                questionText: String,
+                answerText: String,
+                score: Number,
+                feedback: String,
+                strengths: [String],
+                improvements: [String],
+                isFollowUp: Boolean,
+                timestamp: {
+                    type: Date,
+                    default: Date.now,
+                },
+            }],
+            metadata: {
+                type: mongoose.Schema.Types.Mixed,
+                default: {},
+            },
+        }],
+
+        // Resume context for Round 2 personalization (4-round-mock only)
+        resumeContext: {
+            projects: [{
+                name: String,
+                technologies: [String],
+                description: String,
+            }],
+            skills: [String],
+            achievements: [String],
+        },
+
+        // Adaptive interview tracking (4-round-mock only)
+        interviewContext: {
+            userStrengths: [String],
+            userWeaknesses: [String],
         },
 
         // Questions and Answers
@@ -226,6 +309,7 @@ interviewSchema.set('toObject', { virtuals: true });
 // Indexes
 interviewSchema.index({ user: 1, createdAt: -1 });
 interviewSchema.index({ user: 1, status: 1 });
+interviewSchema.index({ user: 1, interviewType: 1, createdAt: -1 });
 
 const Interview = mongoose.model('Interview', interviewSchema);
 

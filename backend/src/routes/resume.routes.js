@@ -10,6 +10,7 @@
 
 const express = require('express');
 const { protect } = require('../middlewares/auth');
+const { mockAuth } = require('../middlewares/mockAuth');
 const upload = require('../middlewares/upload');
 const {
     uploadResume,
@@ -21,8 +22,8 @@ const { analyzeResumeAgainstJob } = require('../controllers/analysis.controller'
 
 const router = express.Router();
 
-// All routes require authentication
-router.use(protect);
+// Auth removed for testing - using mock user
+router.use(mockAuth);
 
 // Upload resume (file key must be 'resume')
 router.post('/upload', upload.single('resume'), uploadResume);

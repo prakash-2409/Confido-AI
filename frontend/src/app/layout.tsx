@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { AuthProvider } from "@/contexts/AuthContext";
+// import { AuthProvider } from "@/contexts/AuthContext";  // Disabled for testing
 import { Toaster } from "@/components/ui/sonner";
 
 const inter = Inter({ 
@@ -49,10 +49,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.className} antialiased`}>
-        <AuthProvider>
-          {children}
-          <Toaster position="top-right" richColors closeButton />
-        </AuthProvider>
+        {/* AuthProvider disabled for testing */}
+        {children}
+        <Toaster position="top-right" richColors closeButton />
       </body>
     </html>
   );

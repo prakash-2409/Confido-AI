@@ -14,6 +14,7 @@ const express = require('express');
 const { body } = require('express-validator');
 const { validate } = require('../middlewares/validator');
 const { protect } = require('../middlewares/auth');
+const { mockAuth } = require('../middlewares/mockAuth');
 const {
     register,
     login,
@@ -97,8 +98,8 @@ router.get('/csrf', getCsrfToken);
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);
 
-// Protected routes
-router.get('/me', protect, getCurrentUser);
-router.put('/profile', protect, profileUpdateValidation, updateProfile);
+// Auth removed for testing - using mock user
+router.get('/me', mockAuth, getCurrentUser);
+router.put('/profile', mockAuth, profileUpdateValidation, updateProfile);
 
 module.exports = router;

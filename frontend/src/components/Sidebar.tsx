@@ -7,7 +7,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/contexts/AuthContext';
+// import { useAuth } from '@/contexts/AuthContext';  // Disabled for testing
 import {
   LayoutDashboard,
   FileText,
@@ -23,6 +23,12 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
 import { useState } from 'react';
+
+// Mock user for testing (auth disabled)
+const mockUser = {
+  name: 'Test User',
+  email: 'test@example.com',
+};
 
 const navItems = [
   {
@@ -49,7 +55,9 @@ const navItems = [
 
 function NavContent({ onItemClick }: { onItemClick?: () => void }) {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
+  // const { user, logout } = useAuth();  // Disabled for testing
+  const user = mockUser;  // Using mock user for testing
+  const logout = () => console.log('Logout disabled during testing');
 
   return (
     <div className="flex flex-col h-full">

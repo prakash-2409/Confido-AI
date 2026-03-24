@@ -25,6 +25,8 @@ const {
     getCsrfToken,
     forgotPassword,
     resetPassword,
+    verifyEmail,
+    resendVerification,
 } = require('../controllers/auth.controller');
 
 const router = express.Router();
@@ -97,9 +99,10 @@ router.post('/logout', logout);
 router.get('/csrf', getCsrfToken);
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);
+router.post('/verify-email', verifyEmail); // Works with token (public) or code (auth)
 
-// Auth removed for testing - using mock user
-router.get('/me', mockAuth, getCurrentUser);
-router.put('/profile', mockAuth, profileUpdateValidation, updateProfile);
+// Protected routes
+router.get('/me', protect, getCurrentUser);
+router.put('/profile', protect, profileUpdateValidation, updateProfile);
 
 module.exports = router;

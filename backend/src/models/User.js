@@ -76,6 +76,66 @@ const userSchema = new mongoose.Schema(
             default: false,
         },
 
+        // Role-based access
+        role: {
+            type: String,
+            enum: ['user', 'admin'],
+            default: 'user',
+        },
+
+        // Email verification
+        emailVerificationCode: {
+            type: String,
+            select: false,
+        },
+        emailVerificationToken: {
+            type: String,
+            select: false,
+        },
+        emailVerificationExpires: {
+            type: Date,
+            select: false,
+        },
+
+        // Password reset
+        passwordResetCode: {
+            type: String,
+            select: false,
+        },
+        passwordResetToken: {
+            type: String,
+            select: false,
+        },
+        passwordResetExpires: {
+            type: Date,
+            select: false,
+        },
+
+        // Subscription
+        subscription: {
+            plan: {
+                type: String,
+                enum: ['free', 'pro', 'enterprise'],
+                default: 'free',
+            },
+            stripeCustomerId: {
+                type: String,
+                default: null,
+            },
+            stripeSubscriptionId: {
+                type: String,
+                default: null,
+            },
+            currentPeriodEnd: {
+                type: Date,
+                default: null,
+            },
+            cancelAtPeriodEnd: {
+                type: Boolean,
+                default: false,
+            },
+        },
+
         // Profile completion tracking
         profileCompleteness: {
             type: Number,
@@ -114,6 +174,12 @@ const userSchema = new mongoose.Schema(
                 delete ret.password;
                 delete ret.refreshTokens;
                 delete ret.__v;
+                delete ret.emailVerificationCode;
+                delete ret.emailVerificationToken;
+                delete ret.emailVerificationExpires;
+                delete ret.passwordResetCode;
+                delete ret.passwordResetToken;
+                delete ret.passwordResetExpires;
                 return ret;
             },
         },

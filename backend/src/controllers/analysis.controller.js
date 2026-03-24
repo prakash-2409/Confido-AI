@@ -5,7 +5,7 @@
  */
 
 const Resume = require('../models/Resume');
-const { analyzeResume } = require('../services/mlService');
+const { analyzeResume, getResumeSuggestions: mlGetSuggestions } = require('../services/mlService');
 const { ApiError } = require('../middlewares/errorHandler');
 
 /**
@@ -59,6 +59,38 @@ const analyzeResumeAgainstJob = async (req, res, next) => {
     }
 };
 
+/**
+ * Get AI-powered resume improvement suggestions
+ * POST /api/v1/resume/suggestions
+ * Body: { resume_text: "...", job_description: "...", target_role?: "..." }
+ */
+const getResumeSuggestions = async (req, res, next) => {
+    try {
+        const { resume_text, job_description, target_role } = req.body;
+
+        if (!resume_text || resume_text.length < 50) {
+            throw new ApiError(400, 'Please provide resume text (min 50 chars)');
+        }
+        if (!job_description || job_description.length < 50) {
+            throw new ApiError(400, 'Please provide a job description (min 50 chars)');
+        }
+
+        const suggestions = await mlGetSuggestions({
+            resumeText: resume_text,
+            jobDescription: job_description,
+            targetRole: target_role || '',
+        });
+
+        res.status(200).json({
+            success: true,
+            data: { suggestions },
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     analyzeResumeAgainstJob,
+    getResumeSuggestions,
 };

@@ -97,6 +97,45 @@ const config = {
   log: {
     level: process.env.LOG_LEVEL || 'info',
   },
+
+  // Email configuration
+  email: {
+    provider: process.env.EMAIL_PROVIDER || 'smtp', // smtp, sendgrid, ses
+    smtpHost: process.env.SMTP_HOST || 'smtp.mailtrap.io',
+    smtpPort: process.env.SMTP_PORT || '587',
+    smtpSecure: process.env.SMTP_SECURE || 'false',
+    smtpUser: process.env.SMTP_USER || '',
+    smtpPass: process.env.SMTP_PASS || '',
+    sendgridApiKey: process.env.SENDGRID_API_KEY || '',
+    sesHost: process.env.SES_HOST || '',
+    sesUser: process.env.SES_USER || '',
+    sesPass: process.env.SES_PASS || '',
+    fromAddress: process.env.EMAIL_FROM_ADDRESS || 'noreply@careerai.com',
+    fromName: process.env.EMAIL_FROM_NAME || 'CareerAI',
+    frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+  },
+
+  // Stripe configuration
+  stripe: {
+    secretKey: process.env.STRIPE_SECRET_KEY || '',
+    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
+    proPriceId: process.env.STRIPE_PRO_PRICE_ID || '',
+    enterprisePriceId: process.env.STRIPE_ENTERPRISE_PRICE_ID || '',
+  },
+
+  // LLM configuration
+  llm: {
+    provider: process.env.LLM_PROVIDER || 'openai', // openai, gemini
+    openaiApiKey: process.env.OPENAI_API_KEY || '',
+    geminiApiKey: process.env.GEMINI_API_KEY || '',
+    model: process.env.LLM_MODEL || 'gpt-4o-mini',
+  },
+
+  // Admin
+  admin: {
+    email: process.env.ADMIN_EMAIL || 'admin@careerai.com',
+    defaultPassword: process.env.ADMIN_DEFAULT_PASSWORD || '',
+  },
 };
 
 // Log configuration on startup (hide secrets)

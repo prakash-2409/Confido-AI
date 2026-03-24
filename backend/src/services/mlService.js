@@ -156,6 +156,38 @@ const generateInterviewSummary = async ({ jobRole, jobDescription, answers }) =>
 };
 
 // ============================================================
+// Resume Improvement Suggestions
+// ============================================================
+
+/**
+ * Get AI-powered resume improvement suggestions
+ * @param {Object} params
+ * @param {string} params.resumeText - Extracted text from resume
+ * @param {string} params.jobDescription - Job description text
+ * @param {string} params.targetRole - Target job role
+ * @returns {Promise<Object>} - Improvement suggestions
+ */
+const getResumeSuggestions = async ({ resumeText, jobDescription, targetRole }) => {
+    try {
+        const response = await mlClient.post('/resume/suggestions', {
+            resume_text: resumeText,
+            job_description: jobDescription,
+            target_role: targetRole || '',
+        });
+
+        return response.data;
+    } catch (error) {
+        console.error('ML Service Error (getResumeSuggestions):', error.message);
+
+        if (error.code === 'ECONNREFUSED') {
+            throw new ApiError(503, 'ML Service is unavailable. Please try again later.');
+        }
+
+        throw new ApiError(500, 'Failed to generate resume suggestions');
+    }
+};
+
+// ============================================================
 // Health Check
 // ============================================================
 
@@ -176,5 +208,6 @@ module.exports = {
     analyzeResume,
     evaluateInterviewAnswer,
     generateInterviewSummary,
+    getResumeSuggestions,
     checkHealth,
 };

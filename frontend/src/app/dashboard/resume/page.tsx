@@ -28,6 +28,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Sparkles,
+  Lightbulb,
+  Wand2,
 } from 'lucide-react';
 
 export default function ResumePage() {
@@ -39,6 +41,8 @@ export default function ResumePage() {
   const [isLoadingResumes, setIsLoadingResumes] = useState(true);
   const [analysisResult, setAnalysisResult] = useState<ATSAnalysis | null>(null);
   const [dragActive, setDragActive] = useState(false);
+  const [suggestions, setSuggestions] = useState<any>(null);
+  const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
 
   // Fetch resumes on mount
   useEffect(() => {
@@ -161,10 +165,34 @@ export default function ResumePage() {
       if (selectedResume?._id === id) {
         setSelectedResume(null);
         setAnalysisResult(null);
+        setSuggestions(null);
       }
       toast.success('Resume deleted');
     } catch (error: any) {
       toast.error('Failed to delete resume');
+    }
+  };
+
+  // Fetch AI suggestions
+  const handleGetSuggestions = async () => {
+    if (!selectedResume || !jobDescription) {
+      toast.error('Please select a resume and enter a job description first');
+      return;
+    }
+    setIsFetchingSuggestions(true);
+    try {
+      const response = await resumeApi.getSuggestions({
+        resume_text: selectedResume.extractedText || '',
+        job_description: jobDescription,
+        target_role: undefined,
+      });
+      setSuggestions(response.data.data.suggestions);
+      toast.success('AI suggestions ready!');
+    } catch (error: any) {
+      const message = error.response?.data?.message || 'Failed to get suggestions';
+      toast.error(message);
+    } finally {
+      setIsFetchingSuggestions(false);
     }
   };
 
@@ -416,6 +444,118 @@ export default function ResumePage() {
                     <li>• Keep formatting simple - ATS systems prefer clean layouts</li>
                   </ul>
                 </div>
+
+                {/* AI Suggestions Button */}
+                <div className="flex justify-center pt-2">
+                  <Button
+                    onClick={handleGetSuggestions}
+                    disabled={isFetchingSuggestions}
+                    variant="outline"
+                    className="gap-2"
+                  >
+                    {isFetchingSuggestions ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Generating AI Suggestions...
+                      </>
+                    ) : (
+                      <>
+                        <Wand2 className="h-4 w-4" />
+                        Get AI Improvement Suggestions
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* AI Suggestions Results */}
+          {suggestions && (
+            <Card className="border-purple-500/50">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Lightbulb className="h-5 w-5 text-purple-500" />
+                      AI Improvement Suggestions
+                    </CardTitle>
+                    <CardDescription>
+                      Personalized recommendations to improve your resume
+                    </CardDescription>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSuggestions(null)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Content Suggestions */}
+                {suggestions.content_suggestions && suggestions.content_suggestions.length > 0 && (
+                  <div>
+                    <h4 className="font-medium mb-3 flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-blue-500" />
+                      Content Improvements
+                    </h4>
+                    <ul className="space-y-2">
+                      {suggestions.content_suggestions.map((s: string, i: number) => (
+                        <li key={i} className="text-sm p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-100 dark:border-blue-900">
+                          {s}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Keyword Suggestions */}
+                {suggestions.keyword_suggestions && suggestions.keyword_suggestions.length > 0 && (
+                  <div>
+                    <h4 className="font-medium mb-3 flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-amber-500" />
+                      Keyword Recommendations
+                    </h4>
+                    <ul className="space-y-2">
+                      {suggestions.keyword_suggestions.map((s: string, i: number) => (
+                        <li key={i} className="text-sm p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-100 dark:border-amber-900">
+                          {s}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Formatting Suggestions */}
+                {suggestions.formatting_suggestions && suggestions.formatting_suggestions.length > 0 && (
+                  <div>
+                    <h4 className="font-medium mb-3 flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      Formatting & Structure
+                    </h4>
+                    <ul className="space-y-2">
+                      {suggestions.formatting_suggestions.map((s: string, i: number) => (
+                        <li key={i} className="text-sm p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-100 dark:border-green-900">
+                          {s}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Overall Summary */}
+                {suggestions.overall_summary && (
+                  <div className="p-4 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-200 dark:border-purple-900">
+                    <h4 className="font-medium text-purple-900 dark:text-purple-100 mb-2">
+                      📝 Summary
+                    </h4>
+                    <p className="text-sm text-purple-800 dark:text-purple-200">
+                      {suggestions.overall_summary}
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}

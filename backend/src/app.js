@@ -24,6 +24,9 @@ const healthRoutes = require('./routes/health.routes');
 const authRoutes = require('./routes/auth.routes');
 const resumeRoutes = require('./routes/resume.routes');
 const interviewRoutes = require('./routes/interview.routes');
+const adminRoutes = require('./routes/admin.routes');
+const subscriptionRoutes = require('./routes/subscription.routes');
+const growthRoutes = require('./routes/growth.routes');
 
 // Initialize Express app
 const app = express();
@@ -103,7 +106,9 @@ app.use('/health', healthRoutes);
 app.use(`${API_BASE}/auth`, authLimiter, authRoutes);
 app.use(`${API_BASE}/resume`, resumeRoutes);
 app.use(`${API_BASE}/interview`, interviewRoutes);
-// app.use(`${API_BASE}/analytics`, analyticsRoutes);
+app.use(`${API_BASE}/admin`, adminRoutes);
+app.use(`${API_BASE}/subscription`, subscriptionRoutes);
+app.use(`${API_BASE}/growth`, growthRoutes);
 
 // Welcome route
 app.get('/', (req, res) => {

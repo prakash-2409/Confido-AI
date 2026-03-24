@@ -1,0 +1,89 @@
+# ================================================================
+# Railway Cloud Deployment Configuration
+# ================================================================
+# Deploy to Railway in minutes:
+#   1. Push this repo to GitHub
+#   2. Go to https://railway.app and create a new project
+#   3. Select "Deploy from GitHub repo"
+#   4. Railway auto-detects this file and creates all three services
+#   5. Set environment variables in the Railway dashboard
+#      (see docker/.env.example for the full list)
+# ================================================================
+
+[build]
+builder = "dockerfile"
+
+# ----------------------------------------------------------------
+# Backend (Node.js / Express)
+# ----------------------------------------------------------------
+[[services]]
+name = "backend"
+source = "backend"
+
+[services.build]
+dockerfilePath = "Dockerfile"
+
+[services.deploy]
+startCommand = "node src/server.js"
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+[services.variables]
+PORT = "5000"
+NODE_ENV = "production"
+# Set these in the Railway dashboard:
+#   MONGODB_URI         (MongoDB Atlas connection string)
+#   JWT_ACCESS_SECRET
+#   JWT_REFRESH_SECRET
+#   CORS_ORIGIN         (your frontend Railway URL)
+#   FRONTEND_URL        (your frontend Railway URL)
+#   ML_SERVICE_URL      (your ml-service Railway URL)
+#   EMAIL_PROVIDER / SMTP_* / SENDGRID_API_KEY
+#   OPENAI_API_KEY / GEMINI_API_KEY
+#   STRIPE_SECRET_KEY / STRIPE_WEBHOOK_SECRET / STRIPE_*_PRICE_ID
+
+# ----------------------------------------------------------------
+# Frontend (Next.js)
+# ----------------------------------------------------------------
+[[services]]
+name = "frontend"
+source = "frontend"
+
+[services.build]
+dockerfilePath = "Dockerfile"
+
+[services.deploy]
+startCommand = "node server.js"
+healthcheckPath = "/"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+[services.variables]
+PORT = "3000"
+NODE_ENV = "production"
+HOSTNAME = "0.0.0.0"
+# Set these in the Railway dashboard:
+#   NEXT_PUBLIC_API_URL  (your backend Railway URL + /api/v1)
+
+# ----------------------------------------------------------------
+# ML Service (Python / FastAPI)
+# ----------------------------------------------------------------
+[[services]]
+name = "ml-service"
+source = "ml-service"
+
+[services.build]
+dockerfilePath = "Dockerfile"
+
+[services.deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 60
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+[services.variables]
+PORT = "8000"
+PYTHONUNBUFFERED = "1"

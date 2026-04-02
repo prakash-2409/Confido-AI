@@ -2,7 +2,7 @@
 
 /**
  * Subscription & Pricing Page
- * 
+ *
  * Displays available plans, current subscription status,
  * and handles Stripe checkout/portal redirects.
  */

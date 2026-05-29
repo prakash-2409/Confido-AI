@@ -27,6 +27,23 @@ const connectDatabase = async () => {
 
     } catch (error) {
         console.error('❌ MongoDB connection error:', error.message);
+
+        if (config.env === 'development') {
+            console.log('🔄 Development environment: Spinning up in-memory MongoDB server as fallback...');
+            try {
+                const { MongoMemoryServer } = require('mongodb-memory-server');
+                const mongoServer = await MongoMemoryServer.create();
+                const uri = mongoServer.getUri();
+                console.log(`ℹ️ In-memory MongoDB Server URI: ${uri}`);
+                await mongoose.connect(uri, config.mongodb.options);
+                console.log('✅ MongoDB (In-Memory) connected successfully');
+                global.__MONGO_MEMORY_SERVER__ = mongoServer;
+                return;
+            } catch (fallbackError) {
+                console.error('❌ Failed to start in-memory MongoDB fallback:', fallbackError.message);
+            }
+        }
+
         console.error('💡 Make sure MongoDB is running and URI is correct');
 
         // Exit with failure code in production
@@ -46,6 +63,10 @@ const disconnectDatabase = async () => {
     try {
         await mongoose.connection.close();
         console.log('👋 MongoDB connection closed gracefully');
+        if (global.__MONGO_MEMORY_SERVER__) {
+            await global.__MONGO_MEMORY_SERVER__.stop();
+            console.log('👋 MongoDB In-Memory Server stopped');
+        }
     } catch (error) {
         console.error('❌ Error closing MongoDB connection:', error.message);
         throw error;

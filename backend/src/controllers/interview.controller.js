@@ -14,6 +14,7 @@ const Resume = require('../models/Resume');
 const { generateQuestions, extractSkillsFromJD } = require('../services/questionService');
 const { evaluateInterviewAnswer, generateInterviewSummary } = require('../services/mlService');
 const { ApiError } = require('../middlewares/errorHandler');
+const { updateCareerReadiness } = require('../services/readinessEngine');
 
 // ============================================================
 // RESPONSE FORMATTER
@@ -115,8 +116,8 @@ const startInterview = async (req, res, next) => {
             }
         }
 
-        // Generate questions based on job role and description
-        const { questions, extractedSkills } = generateQuestions(jobRole, jobDescription, 8);
+        // Generate questions based on job role, description, and user's missing skills from resume
+        const { questions, extractedSkills } = generateQuestions(jobRole, jobDescription, 8, req.user.missingSkills || []);
 
         if (questions.length === 0) {
             throw new ApiError(500, 'Failed to generate interview questions');
@@ -445,6 +446,9 @@ const completeInterview = async (req, res, next) => {
         };
 
         await interview.save();
+
+        // Update Career Readiness score
+        await updateCareerReadiness(req.user._id);
 
         // Re-fetch and return formatted interview
         const updatedInterview = await Interview.findById(interview._id);

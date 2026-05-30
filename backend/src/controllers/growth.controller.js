@@ -14,7 +14,9 @@
 const VideoInterview = require('../models/VideoInterview');
 const LearningRoadmap = require('../models/LearningRoadmap');
 const CompanyInterview = require('../models/CompanyInterview');
+const User = require('../models/User');
 const { ApiError } = require('../middlewares/errorHandler');
+const { updateCareerReadiness } = require('../services/readinessEngine');
 const logger = require('../config/logger');
 
 // ============================================================
@@ -132,66 +134,100 @@ const createRoadmap = async (req, res, next) => {
             throw new ApiError(400, 'Target role is required');
         }
 
-        // Placeholder: In production, this would call the LLM service
-        // to generate a personalized roadmap based on the user's profile
+        // Fetch user's missing skills from ATS analysis
+        const user = await User.findById(req.userId);
+        const missingSkills = user ? user.missingSkills || [] : [];
+
+        const milestones = [];
+        let order = 1;
+
+        // Core assessment milestone
+        milestones.push({
+            title: 'Core Skills Assessment',
+            description: `Evaluate your current skill level and identify gaps for the target role: ${targetRole}`,
+            category: 'technical',
+            priority: 'critical',
+            status: 'not_started',
+            estimatedHours: 2,
+            order: order++,
+        });
+
+        // Add dynamic milestones for missing skills
+        if (missingSkills.length > 0) {
+            missingSkills.forEach(skill => {
+                milestones.push({
+                    title: `Master ${skill.skillName}`,
+                    description: `Learn and practice ${skill.skillName} to close the skill gap identified in your resume. Why recommended: This was identified as a ${skill.importance} missing skill required for the ${targetRole} role.`,
+                    category: 'technical',
+                    priority: skill.importance === 'critical' ? 'critical' : 'important',
+                    status: 'not_started',
+                    estimatedHours: skill.importance === 'critical' ? 15 : 8,
+                    skills: [skill.skillName],
+                    order: order++,
+                    resources: [
+                        {
+                            title: `${skill.skillName} Documentation`,
+                            url: `https://www.google.com/search?q=${encodeURIComponent(skill.skillName + ' official documentation')}`,
+                            type: 'article',
+                            free: true
+                        },
+                        {
+                            title: `Learn ${skill.skillName} on YouTube`,
+                            url: `https://www.youtube.com/results?search_query=${encodeURIComponent(skill.skillName + ' tutorial')}`,
+                            type: 'video',
+                            free: true
+                        }
+                    ]
+                });
+            });
+        } else {
+            // Default generic fallback milestone if user has no resume/missing skills
+            milestones.push({
+                title: `Learn Core technologies for ${targetRole}`,
+                description: `Acquire key skills commonly required for a ${targetRole}. Why recommended: Essential technical foundation for this career track.`,
+                category: 'technical',
+                priority: 'important',
+                status: 'not_started',
+                estimatedHours: 12,
+                order: order++,
+            });
+        }
+
+        // Add final wrap up milestone
+        milestones.push({
+            title: 'Resume Optimization & Mock Interview',
+            description: `Tailor your resume for the ${targetRole} role and conduct a practice interview session to test your knowledge.`,
+            category: 'soft_skills',
+            priority: 'important',
+            status: 'not_started',
+            estimatedHours: 6,
+            order: order++,
+        });
+
         const roadmap = await LearningRoadmap.create({
             user: req.userId,
             title: `Roadmap to ${targetRole}`,
             targetRole,
             currentLevel: currentLevel || 'intermediate',
             status: 'active',
-            milestones: [
-                {
-                    title: 'Core Skills Assessment',
-                    description: 'Evaluate your current skill level and identify gaps',
-                    category: 'technical',
-                    priority: 'critical',
-                    status: 'not_started',
-                    estimatedHours: 2,
-                    order: 1,
-                },
-                {
-                    title: 'Resume Optimization',
-                    description: 'Tailor your resume for the target role',
-                    category: 'soft_skills',
-                    priority: 'critical',
-                    status: 'not_started',
-                    estimatedHours: 4,
-                    order: 2,
-                },
-                {
-                    title: 'Technical Interview Prep',
-                    description: 'Practice technical questions for the role',
-                    category: 'technical',
-                    priority: 'important',
-                    status: 'not_started',
-                    estimatedHours: 20,
-                    order: 3,
-                },
-                {
-                    title: 'Behavioral Interview Prep',
-                    description: 'Prepare STAR-format answers for common behavioral questions',
-                    category: 'behavioral',
-                    priority: 'important',
-                    status: 'not_started',
-                    estimatedHours: 10,
-                    order: 4,
-                },
-            ],
-            estimatedTotalHours: 36,
+            milestones,
+            estimatedTotalHours: milestones.reduce((sum, m) => sum + (m.estimatedHours || 0), 0),
             aiInsights: {
-                summary: `Personalized roadmap to become a ${targetRole}. Full AI-powered analysis coming soon!`,
-                keyFocus: ['Technical Skills', 'Interview Preparation', 'Resume Optimization'],
-                estimatedTimeToReady: '4-6 weeks',
+                summary: `Personalized roadmap to become a ${targetRole} based on your resume gaps.`,
+                keyFocus: missingSkills.map(s => s.skillName).slice(0, 3).concat(['Interview Prep', 'Resume Optimization']),
+                estimatedTimeToReady: missingSkills.length > 2 ? '4-6 weeks' : '2-3 weeks',
             },
         });
 
         logger.info('Learning roadmap created', { userId: req.userId, roadmapId: roadmap._id });
 
+        // Update Career Readiness score
+        await updateCareerReadiness(req.userId);
+
         res.status(201).json({
             success: true,
             data: { roadmap },
-            message: 'Learning roadmap created! AI-personalized content coming soon.',
+            message: 'Learning roadmap created successfully!',
         });
     } catch (error) {
         next(error);
@@ -225,6 +261,9 @@ const updateMilestoneStatus = async (req, res, next) => {
         }
         roadmap.updateCompletion();
         await roadmap.save();
+
+        // Update Career Readiness score
+        await updateCareerReadiness(req.userId);
 
         res.status(200).json({
             success: true,

@@ -388,15 +388,20 @@ const shuffleArray = (array) => {
  * @param {string} jobRole - Target job role
  * @param {string} jobDescription - Job description text
  * @param {number} totalQuestions - Total questions to generate (default: 8)
+ * @param {Array} missingSkills - Array of missing skills objects
  * @returns {Object} - { questions: [], extractedSkills: [] }
  */
-const generateQuestions = (jobRole, jobDescription, totalQuestions = 8) => {
+const generateQuestions = (jobRole, jobDescription, totalQuestions = 8, missingSkills = []) => {
     const questions = [];
     const usedTexts = new Set();
     
     // Extract skills from job description
     const { technicalSkills, softSkills } = extractSkillsFromJD(jobDescription);
-    const extractedSkills = [...technicalSkills, ...softSkills];
+    
+    // Prioritize user's missing skills (weaknesses) from resume analysis
+    const missingSkillNames = missingSkills.map(s => typeof s === 'string' ? s : s.skillName);
+    const technicalSkillsCombined = Array.from(new Set([...missingSkillNames, ...technicalSkills]));
+    const extractedSkills = Array.from(new Set([...technicalSkillsCombined, ...softSkills]));
     
     // Question distribution:
     // - 2 Behavioral questions
@@ -425,7 +430,7 @@ const generateQuestions = (jobRole, jobDescription, totalQuestions = 8) => {
     
     // 2. Add Technical Questions based on extracted skills
     const addedTechnical = new Set();
-    for (const skill of technicalSkills) {
+    for (const skill of technicalSkillsCombined) {
         if (addedTechnical.size >= technicalCount) break;
         
         const skillLower = skill.toLowerCase();

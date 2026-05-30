@@ -5,8 +5,10 @@
  */
 
 const Resume = require('../models/Resume');
+const User = require('../models/User');
 const { analyzeResume, getResumeSuggestions: mlGetSuggestions } = require('../services/mlService');
 const { ApiError } = require('../middlewares/errorHandler');
+const { updateCareerReadiness } = require('../services/readinessEngine');
 
 const COMMON_SKILLS = [
     'react', 'node', 'javascript', 'python', 'aws', 'docker', 'typescript', 'mongodb', 
@@ -104,6 +106,33 @@ const analyzeResumeAgainstJob = async (req, res, next) => {
         resume.missingKeywords = analysis.missing_keywords;
         resume.status = 'analyzed';
         await resume.save();
+
+        // 3.5 Extract and categorize missing keywords
+        const missing = analysis.missing_keywords || [];
+        const formattedMissing = missing.map(skill => {
+            const skillLower = skill.toLowerCase();
+            const isCritical = COMMON_SKILLS.some(cSkill => skillLower.includes(cSkill) || cSkill.includes(skillLower));
+            return {
+                skillName: skill,
+                importance: isCritical ? 'critical' : 'important',
+                sourceResumeId: resume._id,
+                addedAt: new Date()
+            };
+        });
+
+        // Update User missingSkills
+        const user = await User.findById(req.user._id);
+        if (user) {
+            // Remove previous missing skills from this resume
+            user.missingSkills = user.missingSkills.filter(
+                s => s.sourceResumeId?.toString() !== resume._id.toString()
+            );
+            user.missingSkills.push(...formattedMissing);
+            await user.save();
+        }
+
+        // Trigger readiness score update
+        await updateCareerReadiness(req.user._id);
 
         // 4. Return results (wrapped in 'analysis' key for frontend compatibility)
         res.status(200).json({

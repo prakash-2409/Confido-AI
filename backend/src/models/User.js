@@ -144,6 +144,22 @@ const userSchema = new mongoose.Schema(
             default: 30, // After registration: name + email
         },
 
+        // Unified Career Readiness
+        careerReadiness: {
+            type: Number,
+            min: 0,
+            max: 100,
+            default: 0,
+        },
+
+        // Gaps identified in ATS resume analysis
+        missingSkills: [{
+            skillName: { type: String, trim: true },
+            importance: { type: String, enum: ['critical', 'important', 'nice_to_have'], default: 'important' },
+            sourceResumeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Resume' },
+            addedAt: { type: Date, default: Date.now }
+        }],
+
         // Resume tracking
         hasUploadedResume: {
             type: Boolean,

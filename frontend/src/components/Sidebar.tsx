@@ -7,7 +7,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-// import { useAuth } from '@/contexts/AuthContext';  // Disabled for testing
+import { useAuth } from '@/contexts/AuthContext';
 import {
   LayoutDashboard,
   FileText,
@@ -28,12 +28,6 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useState } from 'react';
-
-// Mock user for testing (auth disabled)
-const mockUser = {
-  name: 'Test User',
-  email: 'test@example.com',
-};
 
 const navItems = [
   {
@@ -75,9 +69,7 @@ const navItems = [
 
 function NavContent({ onItemClick }: { onItemClick?: () => void }) {
   const pathname = usePathname();
-  // const { user, logout } = useAuth();  // Disabled for testing
-  const user = mockUser;  // Using mock user for testing
-  const logout = () => console.log('Logout disabled during testing');
+  const { user, logout } = useAuth();
 
   // Build nav items dynamically based on user role
   const allNavItems = [

@@ -10,7 +10,6 @@
 
 const express = require('express');
 const { protect } = require('../middlewares/auth');
-const { mockAuth } = require('../middlewares/mockAuth');
 const upload = require('../middlewares/upload');
 const {
     uploadResume,
@@ -22,8 +21,8 @@ const { analyzeResumeAgainstJob, getResumeSuggestions } = require('../controller
 
 const router = express.Router();
 
-// Auth removed for testing - using mock user
-router.use(mockAuth);
+// Apply real authentication middleware
+router.use(protect);
 
 // Upload resume (file key must be 'resume')
 router.post('/upload', upload.single('resume'), uploadResume);

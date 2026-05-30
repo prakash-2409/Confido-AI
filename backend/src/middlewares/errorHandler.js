@@ -45,8 +45,8 @@ const errorHandler = (err, req, res, next) => {
     // Handle Mongoose duplicate key errors
     if (err.code === 11000) {
         statusCode = 409;
-        message = 'Duplicate Entry';
         const field = Object.keys(err.keyPattern)[0];
+        message = field === 'email' ? 'An account with this email already exists' : 'Duplicate Entry';
         details = { field, message: `${field} already exists` };
     }
 
@@ -73,6 +73,8 @@ const errorHandler = (err, req, res, next) => {
     // Prepare response
     const response = {
         success: false,
+        message,
+        statusCode,
         error: {
             message,
             statusCode,

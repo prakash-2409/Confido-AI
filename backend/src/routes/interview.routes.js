@@ -11,7 +11,6 @@
 
 const express = require('express');
 const { protect } = require('../middlewares/auth');
-const { mockAuth } = require('../middlewares/mockAuth');
 const {
     startInterview,
     getInterview,
@@ -22,8 +21,8 @@ const {
 
 const router = express.Router();
 
-// Auth removed for testing - using mock user
-router.use(mockAuth);
+// Apply real authentication middleware
+router.use(protect);
 
 // Interview session management
 router.post('/start', startInterview);

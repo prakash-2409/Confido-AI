@@ -104,5 +104,6 @@ router.post('/verify-email', verifyEmail); // Works with token (public) or code 
 // Protected routes
 router.get('/me', protect, getCurrentUser);
 router.put('/profile', protect, profileUpdateValidation, updateProfile);
+router.post('/resend-verification', protect, resendVerification);
 
 module.exports = router;

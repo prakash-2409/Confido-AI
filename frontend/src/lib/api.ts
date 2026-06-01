@@ -526,4 +526,31 @@ export const growthApi = {
     api.get<ApiResponse<any>>(`/growth/companies/${company}/interviews`, { params: { role } }),
 };
 
+export const dashboardApi = {
+  getMetrics: () => api.get<ApiResponse<{
+    careerReadiness: number;
+    breakdown: {
+      atsScore: number;
+      interviewScore: number;
+      roadmapProgress: number;
+      profileCompleteness: number;
+    };
+    recommendations: Array<{
+      id: string;
+      type: 'resume' | 'interview' | 'roadmap' | 'profile';
+      title: string;
+      description: string;
+      actionLink: string;
+      priority: 'high' | 'medium' | 'low';
+    }>;
+    timeline: Array<{
+      id: string;
+      type: 'resume' | 'interview' | 'roadmap' | 'achievement';
+      title: string;
+      description: string;
+      timestamp: string;
+    }>;
+  }>>('/dashboard/metrics'),
+};
+
 export default api;

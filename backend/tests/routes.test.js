@@ -39,7 +39,7 @@ describe('GET /health/db', () => {
       .expect(200);
 
     expect(res.body.success).toBe(true);
-    expect(res.body.data.database).toBe('connected');
+    expect(res.body.data.connected).toBe(true);
   });
 });
 

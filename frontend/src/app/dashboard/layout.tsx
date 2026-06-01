@@ -8,6 +8,7 @@
 
 import { Sidebar } from '@/components/Sidebar';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { CareerCoachPanel } from '@/components/CareerCoachPanel';
 
 export default function DashboardLayout({
   children,
@@ -23,6 +24,7 @@ export default function DashboardLayout({
             {children}
           </div>
         </main>
+        <CareerCoachPanel />
       </div>
     </ProtectedRoute>
   );

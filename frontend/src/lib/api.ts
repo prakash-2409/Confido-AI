@@ -553,4 +553,40 @@ export const dashboardApi = {
   }>>('/dashboard/metrics'),
 };
 
+// ============================================================================
+// AI CAREER COACH API
+// ============================================================================
+
+export interface CoachChatMessage {
+  _id?: string;
+  sender: 'user' | 'assistant';
+  text: string;
+  type: 'text' | 'resume_improvement' | 'project_recommendations' | 'readiness_check';
+  data?: any;
+  timestamp: string;
+}
+
+export const coachApi = {
+  /**
+   * Fetch user's persistent coach chat history
+   */
+  getHistory: () => 
+    api.get<ApiResponse<{ messages: CoachChatMessage[] }>>('/coach/history'),
+
+  /**
+   * Send a message or trigger a quick action
+   */
+  sendMessage: (message: string, action?: string) =>
+    api.post<ApiResponse<{ response: string; message: CoachChatMessage; userMessage: CoachChatMessage; messages: CoachChatMessage[] }>>(
+      '/coach/message', 
+      { message, action }
+    ),
+
+  /**
+   * Clear user's coach chat history
+   */
+  clearHistory: () => 
+    api.post<ApiResponse<null>>('/coach/clear'),
+};
+
 export default api;

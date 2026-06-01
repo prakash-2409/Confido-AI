@@ -28,6 +28,7 @@ const adminRoutes = require('./routes/admin.routes');
 const subscriptionRoutes = require('./routes/subscription.routes');
 const growthRoutes = require('./routes/growth.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
+const coachRoutes = require('./routes/coach.routes');
 
 // Initialize Express app
 const app = express();
@@ -111,6 +112,7 @@ app.use(`${API_BASE}/admin`, adminRoutes);
 app.use(`${API_BASE}/subscription`, subscriptionRoutes);
 app.use(`${API_BASE}/growth`, growthRoutes);
 app.use(`${API_BASE}/dashboard`, dashboardRoutes);
+app.use(`${API_BASE}/coach`, coachRoutes);
 
 // Welcome route
 app.get('/', (req, res) => {

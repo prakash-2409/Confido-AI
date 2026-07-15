@@ -589,4 +589,153 @@ export const coachApi = {
     api.post<ApiResponse<null>>('/coach/clear'),
 };
 
+// ============================================================================
+// JOB MATCH INTELLIGENCE API (Phase 3)
+// ============================================================================
+
+export interface ExtractedRequirements {
+  skills: string[];
+  experience: {
+    minYears: number;
+    maxYears: number | null;
+    level: 'entry' | 'junior' | 'mid' | 'senior' | 'lead' | 'principal' | 'any';
+  };
+  education: string[];
+  responsibilities: string[];
+  tools: string[];
+  certifications: string[];
+}
+
+export interface MatchResult {
+  overallScore: number;
+  categoryScores: {
+    skills: number;
+    experience: number;
+    tools: number;
+    education: number;
+  };
+  matchedSkills: string[];
+  missingSkills: string[];
+  matchedTools: string[];
+  missingTools: string[];
+  experienceMatch: {
+    required: string;
+    actual: string;
+    verdict: 'exceeds' | 'meets' | 'below' | 'unknown';
+  };
+  educationMatch: {
+    required: string[];
+    actual: string;
+    verdict: 'meets' | 'below' | 'unknown';
+  };
+}
+
+export interface GapAnalysisItem {
+  skill: string;
+  importance: 'critical' | 'important' | 'nice_to_have';
+  estimatedLearningTime: string | null;
+}
+
+export interface TechGapItem {
+  tech: string;
+  importance: 'critical' | 'important' | 'nice_to_have';
+}
+
+export interface GapAnalysis {
+  missingSkills: GapAnalysisItem[];
+  missingTechnologies: TechGapItem[];
+  missingExperience: string[];
+  missingInterviewPrep: string[];
+}
+
+export interface HiringProbability {
+  level: 'low' | 'medium' | 'high';
+  percentage: number;
+  reasoning: string[];
+  topBlockers: string[];
+}
+
+export interface ImprovementSimulation {
+  action: string;
+  currentScore: number;
+  projectedScore: number;
+  impact: number;
+}
+
+export interface PredictedQuestion {
+  question: string;
+  category: 'technical' | 'behavioral' | 'situational' | 'system_design';
+  difficulty: 'easy' | 'medium' | 'hard';
+}
+
+export interface InterviewPrediction {
+  likelyTopics: string[];
+  predictedQuestions: PredictedQuestion[];
+  preparationTips: string[];
+}
+
+export interface JobMatch {
+  _id: string;
+  user: string;
+  resume?: string;
+  jobTitle: string;
+  company?: string | null;
+  jobDescriptionText?: string;
+  extractedRequirements: ExtractedRequirements;
+  matchResult: MatchResult;
+  gapAnalysis: GapAnalysis;
+  hiringProbability: HiringProbability;
+  improvementSimulations: ImprovementSimulation[];
+  interviewPrediction: InterviewPrediction;
+  status: 'analyzing' | 'completed' | 'error';
+  errorMessage?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const jobMatchApi = {
+  /**
+   * Analyze a job description against user's profile/resume
+   */
+  analyze: (data: {
+    jobDescriptionText: string;
+    resumeId?: string;
+    jobTitle?: string;
+    company?: string;
+  }) => api.post<ApiResponse<{ jobMatch: JobMatch }>>('/job-match/analyze', data),
+
+  /**
+   * Analyze a PDF job description
+   */
+  analyzeWithPdf: (file: File, resumeId?: string, jobTitle?: string, company?: string) => {
+    const formData = new FormData();
+    formData.append('jobDescriptionFile', file);
+    if (resumeId) formData.append('resumeId', resumeId);
+    if (jobTitle) formData.append('jobTitle', jobTitle);
+    if (company) formData.append('company', company);
+    return api.post<ApiResponse<{ jobMatch: JobMatch }>>('/job-match/analyze', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 60000,
+    });
+  },
+
+  /**
+   * Get all job match analyses for current user
+   */
+  getAll: () =>
+    api.get<ApiResponse<{ count: number; matches: JobMatch[] }>>('/job-match'),
+
+  /**
+   * Get single job match by ID
+   */
+  getById: (id: string) =>
+    api.get<ApiResponse<{ jobMatch: JobMatch }>>(`/job-match/${id}`),
+
+  /**
+   * Delete a job match analysis
+   */
+  delete: (id: string) =>
+    api.delete<ApiResponse<null>>(`/job-match/${id}`),
+};
+
 export default api;

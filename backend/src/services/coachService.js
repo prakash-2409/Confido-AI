@@ -11,6 +11,7 @@ const Resume = require('../models/Resume');
 const Interview = require('../models/Interview');
 const LearningRoadmap = require('../models/LearningRoadmap');
 const CoachChat = require('../models/CoachChat');
+const JobMatch = require('../models/JobMatch');
 const { callLLM } = require('../utils/llmClient');
 const { updateCareerReadiness } = require('./readinessEngine');
 const logger = require('../config/logger');
@@ -93,7 +94,26 @@ const gatherUserContext = async (userId) => {
             strengths: interviewStrengths,
             weaknesses: interviewWeaknesses,
             hasInterviews: completedInterviews.length > 0
-        }
+        },
+        // Phase 3: Latest Job Match Intelligence data
+        jobMatch: await (async () => {
+            const latestMatch = await JobMatch.findOne({ user: userId, status: 'completed' })
+                .sort({ createdAt: -1 })
+                .select('jobTitle company matchResult.overallScore matchResult.matchedSkills matchResult.missingSkills hiringProbability.level hiringProbability.topBlockers improvementSimulations')
+                .lean();
+            if (!latestMatch) return { hasJobMatch: false };
+            return {
+                hasJobMatch: true,
+                jobTitle: latestMatch.jobTitle,
+                company: latestMatch.company,
+                overallScore: latestMatch.matchResult?.overallScore || 0,
+                matchedSkills: latestMatch.matchResult?.matchedSkills || [],
+                missingSkills: latestMatch.matchResult?.missingSkills || [],
+                hiringLevel: latestMatch.hiringProbability?.level || 'unknown',
+                topBlockers: latestMatch.hiringProbability?.topBlockers || [],
+                topImprovements: (latestMatch.improvementSimulations || []).slice(0, 3).map(s => s.action),
+            };
+        })()
     };
 };
 
@@ -143,7 +163,16 @@ ${context.roadmap.hasRoadmap ? `Milestones:\n${roadmapMilestonesStr}` : ''}
 - Identified Weaknesses/Gaps: ${context.interviews.weaknesses.join(', ') || 'None yet'}
 
 Always refer to their specific stats. If they ask about skills, refer to their missing keywords or missing skills in the context. If they ask about readiness, tie it back to their Career Readiness Score.
-Keep answers concise, professional, and actionable. Use markdown list items and bullet points for readability.`;
+Keep answers concise, professional, and actionable. Use markdown list items and bullet points for readability.
+${context.jobMatch?.hasJobMatch ? `
+[JOB MATCH INTELLIGENCE]
+- Latest Job Analyzed: ${context.jobMatch.jobTitle}${context.jobMatch.company ? ` at ${context.jobMatch.company}` : ''}
+- Match Score: ${context.jobMatch.overallScore}%
+- Hiring Probability: ${context.jobMatch.hiringLevel}
+- Matched Skills: ${context.jobMatch.matchedSkills.join(', ') || 'None'}
+- Missing Skills for Job: ${context.jobMatch.missingSkills.join(', ') || 'None'}
+- Top Blockers: ${context.jobMatch.topBlockers.join('; ') || 'None'}
+- Top Improvement Actions: ${context.jobMatch.topImprovements.join('; ') || 'None'}` : ''}`;
 };
 
 /**

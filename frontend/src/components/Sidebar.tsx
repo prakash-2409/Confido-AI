@@ -21,6 +21,7 @@ import {
   Shield,
   Map,
   Building2,
+  Target,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -44,6 +45,11 @@ const navItems = [
     title: 'Interview Practice',
     href: '/dashboard/interview',
     icon: MessageSquare,
+  },
+  {
+    title: 'Job Match',
+    href: '/dashboard/job-match',
+    icon: Target,
   },
   {
     title: 'Subscription',

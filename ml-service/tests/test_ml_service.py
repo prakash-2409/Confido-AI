@@ -118,7 +118,7 @@ class TestInterviewEvaluator:
             category="behavioral",
             answer_text=star_answer,
             expected_keywords=["leadership", "team"]
-        )
+    )
         
         brief_result = interview_evaluator.evaluate_answer(
             question_text="Tell me about a leadership experience",
@@ -231,3 +231,4 @@ class TestTextProcessing:
             "Python web developer needed"
         )
         assert 0 <= score <= 100
+

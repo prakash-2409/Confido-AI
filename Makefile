@@ -106,7 +106,7 @@ health:
 	@curl -s http://localhost:8000/health | python3 -m json.tool 2>/dev/null || echo "  ❌ ML Service: DOWN"
 	@echo ""
 	@echo "Frontend:"
-	@curl -s -o /dev/null -w "  ✅ Frontend: UP (HTTP %{http_code})\n" http://localhost:3000 2>/dev/null || echo "  ❌ Frontend: DOWN"
+	@curl -s -o /dev/null -w "  ✅ Frontend: UP (HTTP %{http_code})\n" http://localhost:3001 2>/dev/null || echo "  ❌ Frontend: DOWN"
 	@echo ""
 	@echo "MongoDB:"
 	@docker exec career-ai-mongodb mongosh --eval "db.adminCommand('ping')" --quiet 2>/dev/null && echo "  ✅ MongoDB: UP" || echo "  ❌ MongoDB: DOWN"

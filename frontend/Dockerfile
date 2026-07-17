@@ -13,6 +13,12 @@ RUN npm ci
 # Copy source code
 COPY . .
 
+# Accept API URLs as build args so they get baked into standalone config
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_ML_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_ML_URL=$NEXT_PUBLIC_ML_URL
+
 # Build the application
 RUN npm run build
 

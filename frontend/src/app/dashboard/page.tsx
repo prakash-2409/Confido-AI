@@ -85,7 +85,7 @@ export default function DashboardPage() {
   };
 
   const getReadinessLabel = (score: number) => {
-    if (   >= 80) return { label: 'Job Ready', color: 'text-emerald-700 bg-emerald-50 border-emerald-200' };
+    if (score >= 80) return { label: 'Job Ready', color: 'text-emerald-700 bg-emerald-50 border-emerald-200' };
     if (score >= 60) return { label: 'Almost Ready', color: 'text-yellow-700 bg-yellow-50 border-yellow-200' };
     if (score >= 30) return { label: 'Preparing', color: 'text-orange-700 bg-orange-50 border-orange-200' };
     return { label: 'Getting Started', color: 'text-blue-700 bg-blue-50 border-blue-200' };

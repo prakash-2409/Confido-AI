@@ -30,6 +30,9 @@ const config: Config = {
         'body': ['0.9375rem', { lineHeight: '1.5rem', letterSpacing: '-0.005em' }],
         'caption': ['0.8125rem', { lineHeight: '1.25rem', letterSpacing: '0.005em' }],
       },
+      fontFamily: {
+        sans: ["var(--font-inter)", "sans-serif"],
+      },
       animation: {
         'fade-in': 'fade-in 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
         'slide-up': 'slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1)',

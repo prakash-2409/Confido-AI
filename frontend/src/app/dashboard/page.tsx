@@ -85,7 +85,7 @@ export default function DashboardPage() {
   };
 
   const getReadinessLabel = (score: number) => {
-    if (score >= 80) return { label: 'Job Ready', color: 'text-emerald-700 bg-emerald-50 border-emerald-200' };
+    if (   >= 80) return { label: 'Job Ready', color: 'text-emerald-700 bg-emerald-50 border-emerald-200' };
     if (score >= 60) return { label: 'Almost Ready', color: 'text-yellow-700 bg-yellow-50 border-yellow-200' };
     if (score >= 30) return { label: 'Preparing', color: 'text-orange-700 bg-orange-50 border-orange-200' };
     return { label: 'Getting Started', color: 'text-blue-700 bg-blue-50 border-blue-200' };
@@ -119,7 +119,7 @@ export default function DashboardPage() {
       className="space-y-8"
     >
       {/* Header */}
-      <motion.div 
+      <motion.div
         variants={itemVariants}
         className="flex flex-col md:flex-row md:items-center md:justify-between gap-4"
       >
@@ -231,8 +231,8 @@ export default function DashboardPage() {
                             <Badge className={cn(
                               'text-[10px] uppercase font-bold tracking-wider',
                               rec.priority === 'high' ? 'bg-red-100 text-red-700 hover:bg-red-100' :
-                              rec.priority === 'medium' ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-100' :
-                              'bg-blue-100 text-blue-700 hover:bg-blue-100'
+                                rec.priority === 'medium' ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-100' :
+                                  'bg-blue-100 text-blue-700 hover:bg-blue-100'
                             )}>
                               {rec.priority}
                             </Badge>
@@ -353,16 +353,16 @@ export default function DashboardPage() {
 }
 
 // Quick Action Card Component
-function QuickActionCard({ 
-  icon: Icon, 
-  title, 
-  description, 
+function QuickActionCard({
+  icon: Icon,
+  title,
+  description,
   href,
-  color 
-}: { 
-  icon: React.ElementType; 
-  title: string; 
-  description: string; 
+  color
+}: {
+  icon: React.ElementType;
+  title: string;
+  description: string;
   href: string;
   color: 'blue' | 'emerald' | 'purple' | 'orange';
 }) {

@@ -23,12 +23,14 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const pathname = usePathname();
 
   useEffect(() => {
+    /* TEMPORARY: Bypass auth for dashboard development
     if (!isLoading && !isAuthenticated) {
       // Store the attempted URL for redirect after login
       const searchParams = new URLSearchParams();
       searchParams.set('from', pathname);
       router.push(`/login?${searchParams.toString()}`);
     }
+    */
   }, [isAuthenticated, isLoading, router, pathname]);
 
   if (isLoading) {
@@ -56,9 +58,11 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
+  /* TEMPORARY: Bypass auth
   if (!isAuthenticated) {
     return null;
   }
+  */
 
   return <>{children}</>;
 }

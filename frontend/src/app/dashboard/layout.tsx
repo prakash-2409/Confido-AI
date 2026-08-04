@@ -3,16 +3,12 @@
 import { useState } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { CareerCoachPanel } from '@/components/CareerCoachPanel';
 import { cn } from '@/lib/utils';
-import { 
-  Search, 
-  Bell, 
-  HelpCircle, 
-  Sparkles, 
-  Plus, 
-  FileText, 
-  Zap,
+import {
+  Search,
+  Bell,
+  UserPlus,
+  Bot,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,78 +27,71 @@ export default function DashboardLayout({
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-background text-foreground flex">
-        {/* Collapsible Sidebar */}
+        {/* Sidebar */}
         <Sidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
 
-        {/* Right side page context layout */}
-        <div className={cn(
-          "flex-1 flex flex-col min-w-0 transition-all duration-300",
-          isCollapsed ? "md:pl-16" : "md:pl-64"
-        )}>
-          {/* Top Navbar */}
-          <header className="sticky top-0 z-20 h-14 border-b border-border/40 bg-background/80 backdrop-blur-md flex items-center justify-between px-6">
-            {/* Search Bar / Cmd+K style wrapper */}
-            <div className="flex items-center gap-3 w-72 md:w-96">
+        {/* Main content area */}
+        <div
+          className={cn(
+            "flex-1 flex flex-col min-w-0 transition-all duration-200",
+            isCollapsed ? "md:pl-14" : "md:pl-56"
+          )}
+        >
+          {/* Top header bar */}
+          <header className="sticky top-0 z-20 h-12 border-b border-border bg-background/80 backdrop-blur-md flex items-center justify-between px-6">
+            {/* Search */}
+            <div className="flex items-center gap-3 w-64 lg:w-80">
               <div className="relative w-full group">
-                <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-muted-foreground transition-colors group-focus-within:text-primary" />
-                <Input 
-                  placeholder="Search modules, files..." 
-                  className="pl-9 h-8.5 text-xs bg-muted/30 border-border/40 focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-primary/20 w-full"
+                <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground transition-colors group-focus-within:text-primary" />
+                <Input
+                  placeholder="Search candidates, skills..."
+                  className="pl-8 h-8 text-xs bg-muted/30 border-border focus-visible:ring-1 focus-visible:ring-ring w-full"
                 />
-                <kbd className="pointer-events-none absolute right-3 top-2 hidden h-4.5 select-none items-center gap-0.5 rounded border border-border bg-muted px-1.5 font-mono text-[9px] font-medium text-muted-foreground shadow-sm group-focus-within:hidden md:flex">
+                <kbd className="pointer-events-none absolute right-2.5 top-1.5 hidden h-5 select-none items-center gap-0.5 rounded border border-border bg-muted px-1.5 font-mono text-2xs font-medium text-muted-foreground group-focus-within:hidden md:flex">
                   <span>⌘</span>K
                 </kbd>
               </div>
             </div>
 
-            {/* Quick Actions & Profiles */}
-            <div className="flex items-center gap-4">
-              {/* Quick Action Trigger */}
-              <div className="hidden sm:flex items-center gap-2">
-                <Link href="/dashboard/resume">
-                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground">
-                    <FileText className="h-3.5 w-3.5" />
-                    ATS Scan
+            {/* Actions */}
+            <div className="flex items-center gap-2">
+              <div className="hidden sm:flex items-center gap-1.5">
+                <Link href="/dashboard/candidates">
+                  <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs text-muted-foreground hover:text-foreground">
+                    <UserPlus className="h-3.5 w-3.5" />
+                    Add Candidate
                   </Button>
                 </Link>
-                <Link href="/dashboard/interview">
-                  <Button size="sm" className="h-8 gap-1.5 text-xs shadow-sm hover:shadow-md">
-                    <Zap className="h-3.5 w-3.5" />
-                    Mock Interview
+                <Link href="/dashboard/copilot">
+                  <Button size="sm" className="h-7 gap-1.5 text-xs">
+                    <Bot className="h-3.5 w-3.5" />
+                    AI Copilot
                   </Button>
                 </Link>
               </div>
 
-              {/* Notification icon wrapper */}
-              <button className="h-8 w-8 rounded-lg hover:bg-muted/70 flex items-center justify-center text-muted-foreground hover:text-foreground relative transition-colors">
-                <Bell className="h-4.5 w-4.5" />
-                <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-primary" />
+              {/* Notifications */}
+              <button className="h-7 w-7 rounded-md hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground relative transition-colors">
+                <Bell className="h-4 w-4" />
+                <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-evidence-risk" />
               </button>
 
-              {/* Help widget */}
-              <button className="h-8 w-8 rounded-lg hover:bg-muted/70 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
-                <HelpCircle className="h-4.5 w-4.5" />
-              </button>
-
-              {/* Avatar trigger */}
-              <Avatar className="h-7 w-7 ring-1 ring-border shadow-sm">
-                <AvatarFallback className="bg-primary/5 text-primary text-[10px] font-bold font-mono">
+              {/* User avatar */}
+              <Avatar className="h-6 w-6 ring-1 ring-border">
+                <AvatarFallback className="bg-primary/5 text-primary text-2xs font-semibold">
                   {user?.name?.charAt(0).toUpperCase() || 'U'}
                 </AvatarFallback>
               </Avatar>
             </div>
           </header>
 
-          {/* Main Dashboard Workspace Content */}
+          {/* Page content */}
           <main className="flex-1 overflow-y-auto">
-            <div className="container mx-auto px-6 py-8 md:px-8 max-w-7xl">
+            <div className="max-w-7xl mx-auto px-6 py-6">
               {children}
             </div>
           </main>
         </div>
-        
-        {/* Collapsible Floating Career Coach AI Panel */}
-        <CareerCoachPanel />
       </div>
     </ProtectedRoute>
   );

@@ -4,22 +4,51 @@ import { PageHeader } from '@/components/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { GraduationCap, TrendingUp, Users, Building, Filter, Download } from 'lucide-react';
-
-// TODO: Replace with real API data (Epic 2/3)
-const BATCH_STATS = [
-  { batch: 'Class of 2026', total: 450, placed: 315, rate: 70 },
-  { batch: 'Class of 2025', total: 420, placed: 386, rate: 92 },
-  { batch: 'Class of 2024', total: 400, placed: 375, rate: 94 },
-];
-
-const TOP_EMPLOYERS = [
-  { name: 'TechCorp', hires: 45, roles: 'Software Engineer, Data Analyst' },
-  { name: 'InnovateAI', hires: 32, roles: 'ML Engineer, Backend Developer' },
-  { name: 'GlobalFin', hires: 28, roles: 'Quantitative Analyst, SDE' },
-  { name: 'CloudSystems', hires: 25, roles: 'Cloud Architect, DevOps' },
-];
+import { recruiterApi } from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
+import { LoadingState } from '@/components/LoadingState';
+import { ErrorState } from '@/components/ErrorState';
+import { EmptyState } from '@/components/EmptyState';
 
 export default function PlacementPage() {
+  const { data, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ['placement-stats'],
+    queryFn: () => recruiterApi.getPlacementStats()
+  });
+
+  if (isLoading) {
+    return <LoadingState message="Loading placement intelligence..." />;
+  }
+
+  if (isError) {
+    return (
+      <ErrorState 
+        message={error instanceof Error ? error.message : "Failed to load placement stats."} 
+        onRetry={refetch}
+      />
+    );
+  }
+
+  const batchStats = data?.data?.data?.batchStats || [];
+  const topEmployers = data?.data?.data?.topEmployers || [];
+
+  if (batchStats.length === 0 && topEmployers.length === 0) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title="Placement Intelligence"
+          description="University and batch-level placement analytics"
+          icon={GraduationCap}
+        />
+        <EmptyState
+          icon={GraduationCap}
+          title="No placement data available"
+          description="No batch placement records or employer data found."
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -43,7 +72,7 @@ export default function PlacementPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0 space-y-4">
-            {BATCH_STATS.map((stat) => (
+            {batchStats.map((stat) => (
               <div key={stat.batch}>
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs font-medium">{stat.batch}</span>
@@ -73,7 +102,7 @@ export default function PlacementPage() {
           </CardHeader>
           <CardContent className="pt-0">
             <div className="space-y-0">
-              {TOP_EMPLOYERS.map((employer, i) => (
+              {topEmployers.map((employer, i) => (
                 <div key={employer.name} className="flex items-center justify-between py-3 border-b border-border/50 last:border-0">
                   <div className="flex items-center gap-3">
                     <div className="h-8 w-8 rounded bg-primary/5 flex items-center justify-center text-xs font-bold text-primary">

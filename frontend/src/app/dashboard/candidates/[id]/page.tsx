@@ -8,6 +8,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+import { recruiterApi } from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
+import { useParams } from 'next/navigation';
+import { LoadingState } from '@/components/LoadingState';
+import { ErrorState } from '@/components/ErrorState';
+import { EmptyState } from '@/components/EmptyState';
 import {
   ArrowLeft,
   User,
@@ -30,50 +36,50 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 
-// TODO: Fetch candidate by ID from API (Epic 2/3)
-const MOCK_CANDIDATE = {
-  id: '1',
-  name: 'Arjun Mehta',
-  role: 'Senior Backend Engineer',
-  email: 'arjun.mehta@example.com',
-  phone: '+91 98765 43210',
-  location: 'Bangalore, India',
-  experience: '5 years',
-  status: 'Interview',
-  evidenceScore: 87,
-  hiringReadiness: 82,
-  authenticityScore: 91,
-  summary: 'Strong backend engineer with verified experience in distributed systems. GitHub contributions confirm Python/Django expertise. Communication quality rated high from interview analysis. Minor gap in cloud-native infrastructure experience.',
-  skills: [
-    { name: 'Python', confidence: 94, sources: ['Resume', 'GitHub', 'Interview', 'Assessment'], level: 'verified' as const, reasoning: 'Confirmed through 47 GitHub repos, 3 production projects on resume, and correct interview responses on async patterns.' },
-    { name: 'Django', confidence: 88, sources: ['Resume', 'GitHub', 'Interview'], level: 'verified' as const, reasoning: 'Active Django contributor on GitHub. Resume shows 3 years of Django in production. Interview answers demonstrate deep ORM knowledge.' },
-    { name: 'PostgreSQL', confidence: 82, sources: ['Resume', 'Interview'], level: 'collected' as const, reasoning: 'Resume claims PostgreSQL experience. Interview confirmed indexing and query optimization knowledge. No GitHub evidence found.' },
-    { name: 'Docker', confidence: 71, sources: ['Resume', 'GitHub'], level: 'collected' as const, reasoning: 'Dockerfiles found in 5 GitHub repos. Resume mentions containerization. No interview validation yet.' },
-    { name: 'Kubernetes', confidence: 38, sources: ['Resume'], level: 'review' as const, reasoning: 'Only mentioned on resume. No GitHub evidence, no interview validation. Confidence low — needs verification.' },
-    { name: 'AWS', confidence: 45, sources: ['Resume'], level: 'review' as const, reasoning: 'Listed on resume without specific services. No project evidence. Consider probing in next interview round.' },
-  ],
-  hiringDimensions: [
-    { dimension: 'Technical Skills', score: 85, reasoning: 'Strong Python/Django foundation verified across multiple sources.' },
-    { dimension: 'Communication', score: 78, reasoning: 'Clear and structured responses in interview. Minor verbosity in explanations.' },
-    { dimension: 'Problem Solving', score: 82, reasoning: 'Systematic approach observed in system design questions.' },
-    { dimension: 'Project Quality', score: 88, reasoning: 'GitHub repos show clean architecture, tests, and documentation.' },
-    { dimension: 'Learning Velocity', score: 72, reasoning: 'Skill acquisition timeline shows moderate but consistent growth.' },
-    { dimension: 'Authenticity', score: 91, reasoning: 'Evidence is consistent across all sources. No red flags detected.' },
-  ],
-  riskIndicators: [
-    { risk: 'Kubernetes claim unverified', severity: 'medium', detail: 'Resume lists Kubernetes but no supporting evidence from other sources.' },
-    { risk: 'AWS depth unclear', severity: 'low', detail: 'Generic AWS mention without specific services or certifications.' },
-  ],
-  timeline: [
-    { date: '2d ago', action: 'Interview completed', detail: 'Technical round — scored 82%' },
-    { date: '4d ago', action: 'GitHub verified', detail: '47 repos analyzed, 12 relevant to role' },
-    { date: '5d ago', action: 'Resume uploaded', detail: 'PDF parsed, 6 skills extracted' },
-    { date: '5d ago', action: 'Candidate added', detail: 'Added by recruiter' },
-  ],
-};
-
 export default function CandidateProfilePage() {
-  const candidate = MOCK_CANDIDATE;
+  const params = useParams();
+  const id = params.id as string;
+
+  const { data, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ['candidate-detail', id],
+    queryFn: () => recruiterApi.getCandidateById(id),
+    enabled: !!id
+  });
+
+  if (isLoading) {
+    return <LoadingState message="Loading candidate intelligence profile..." />;
+  }
+
+  if (isError) {
+    return (
+      <ErrorState 
+        message={error instanceof Error ? error.message : "Failed to load candidate profile."} 
+        onRetry={refetch}
+      />
+    );
+  }
+
+  const candidate = data?.data?.data?.candidate;
+
+  if (!candidate) {
+    return (
+      <div className="space-y-6">
+        <Link href="/dashboard/candidates" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mb-4">
+          <ArrowLeft className="h-3 w-3" />
+          Back to candidates
+        </Link>
+        <EmptyState
+          icon={User}
+          title="Candidate not found"
+          description="The requested candidate profile does not exist or has been deleted."
+        />
+      </div>
+    );
+  }
+
+  const evLevel = candidate.skills.some(s => s.level === 'verified') ? 'verified' :
+                  candidate.skills.some(s => s.level === 'collected') ? 'collected' :
+                  candidate.skills.some(s => s.level === 'review') ? 'review' : 'risk';
 
   return (
     <div className="space-y-6">
@@ -92,12 +98,12 @@ export default function CandidateProfilePage() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-semibold tracking-tight">{candidate.name}</h1>
-                <EvidenceBadge level="verified" />
+                <EvidenceBadge level={evLevel} />
               </div>
               <p className="text-sm text-muted-foreground">{candidate.role} · {candidate.experience}</p>
               <div className="flex items-center gap-3 mt-1">
                 <span className="text-2xs text-muted-foreground flex items-center gap-1"><Mail className="h-3 w-3" /> {candidate.email}</span>
-                <span className="text-2xs text-muted-foreground flex items-center gap-1"><Briefcase className="h-3 w-3" /> {candidate.location}</span>
+                {candidate.location && <span className="text-2xs text-muted-foreground flex items-center gap-1"><Briefcase className="h-3 w-3" /> {candidate.location}</span>}
               </div>
             </div>
           </div>

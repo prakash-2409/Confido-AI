@@ -119,3 +119,50 @@ class QuestionGenerationResponse(BaseModel):
     examples: List[str] = []  # For Round 3
     generated_from: Optional[str] = None  # "llm", "template", "question_bank"
 
+
+# ============================================================
+# Structured Resume Parser Schemas
+# ============================================================
+
+class StructuredPersonal(BaseModel):
+    name: Optional[str] = ""
+    email: Optional[str] = ""
+    phone: Optional[str] = ""
+    linkedin: Optional[str] = ""
+    github: Optional[str] = ""
+    portfolio: Optional[str] = ""
+
+class StructuredEducation(BaseModel):
+    college: Optional[str] = ""
+    degree: Optional[str] = ""
+    cgpa: Optional[str] = ""
+    graduation_year: Optional[str] = ""
+
+class StructuredExperience(BaseModel):
+    company: Optional[str] = ""
+    role: Optional[str] = ""
+    duration: Optional[str] = ""
+    description: Optional[str] = ""
+
+class StructuredProject(BaseModel):
+    name: Optional[str] = ""
+    description: Optional[str] = ""
+    technologies: List[str] = []
+    github_url: Optional[str] = ""
+
+class StructuredResumeParseRequest(BaseModel):
+    resume_text: str
+
+class StructuredResumeParseResponse(BaseModel):
+    personal: StructuredPersonal
+    education: List[StructuredEducation] = []
+    experience: List[StructuredExperience] = []
+    projects: List[StructuredProject] = []
+    skills: List[str] = []
+    certifications: List[str] = []
+    achievements: List[str] = []
+    languages: List[str] = []
+    internships: List[StructuredExperience] = []
+    publications: List[str] = []
+    volunteer: List[StructuredExperience] = []
+

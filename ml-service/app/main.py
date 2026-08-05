@@ -12,7 +12,9 @@ from app.models.schemas import (
     ResumeContextRequest,
     ResumeContextResponse,
     QuestionGenerationRequest,
-    QuestionGenerationResponse
+    QuestionGenerationResponse,
+    StructuredResumeParseRequest,
+    StructuredResumeParseResponse
 )
 from app.models.ats import ats_analyzer
 from app.models.interview_evaluator import interview_evaluator
@@ -24,6 +26,7 @@ from app.models.llm_service import (
 )
 from app.models.resume_context_extractor import extract_resume_context
 from app.models import dynamic_question_generator
+from app.models.resume_parser import parse_resume_structured
 import uvicorn
 import logging
 import json
@@ -377,6 +380,29 @@ async def get_resume_suggestions(request: ResumeSuggestionsRequest):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Suggestions error: {str(e)}")
+
+
+# ============================================================
+# Structured Resume Parsing Endpoint
+# ============================================================
+
+@app.post("/resume/parse-structured", response_model=StructuredResumeParseResponse)
+async def parse_resume_structured_endpoint(request: StructuredResumeParseRequest):
+    """
+    Extract high-fidelity structured JSON from unstructured resume text.
+    """
+    try:
+        if not request.resume_text or len(request.resume_text.strip()) < 50:
+            raise HTTPException(
+                status_code=400,
+                detail="Resume text is required and must be at least 50 characters"
+            )
+            
+        result = parse_resume_structured(request.resume_text)
+        return result
+    except Exception as e:
+        logger.error(f"Structured resume parsing error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":

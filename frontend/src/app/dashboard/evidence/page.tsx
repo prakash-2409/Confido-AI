@@ -6,6 +6,12 @@ import { ConfidenceScore } from '@/components/ConfidenceScore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { recruiterApi } from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
+import { LoadingState } from '@/components/LoadingState';
+import { ErrorState } from '@/components/ErrorState';
+import { EmptyState } from '@/components/EmptyState';
+import Link from 'next/link';
 import {
   ShieldCheck,
   Upload,
@@ -21,25 +27,54 @@ import {
   RefreshCw,
 } from 'lucide-react';
 
-// TODO: Replace with real API data (Epic 2/3)
-const EVIDENCE_SOURCES = [
-  { source: 'Resume', icon: FileText, collected: 12, verified: 8, pending: 4 },
-  { source: 'GitHub', icon: Github, collected: 6, verified: 5, pending: 1 },
-  { source: 'Interview', icon: MessageSquare, collected: 5, verified: 4, pending: 1 },
-  { source: 'Assessment', icon: Code, collected: 3, verified: 2, pending: 1 },
-  { source: 'LinkedIn', icon: Linkedin, collected: 2, verified: 1, pending: 1 },
-  { source: 'Certificates', icon: Award, collected: 4, verified: 3, pending: 1 },
-];
-
-const EVIDENCE_COVERAGE = [
-  { candidate: 'Arjun Mehta', resume: true, github: true, interview: true, assessment: false, linkedin: false, overall: 87 },
-  { candidate: 'Priya Sharma', resume: true, github: true, interview: false, assessment: false, linkedin: true, overall: 68 },
-  { candidate: 'Rahul Verma', resume: true, github: false, interview: false, assessment: false, linkedin: false, overall: 35 },
-  { candidate: 'Vikram Singh', resume: true, github: true, interview: true, assessment: true, linkedin: true, overall: 94 },
-  { candidate: 'Ananya Rao', resume: true, github: false, interview: false, assessment: true, linkedin: false, overall: 52 },
-];
+const ICON_MAP: Record<string, any> = {
+  'Resume': FileText,
+  'GitHub': Github,
+  'Interview': MessageSquare,
+  'Assessment': Code,
+  'LinkedIn': Linkedin,
+  'Certificates': Award
+};
 
 export default function EvidenceEnginePage() {
+  const { data, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ['evidence-summary'],
+    queryFn: () => recruiterApi.getEvidenceSummary()
+  });
+
+  if (isLoading) {
+    return <LoadingState message="Loading evidence matrix..." />;
+  }
+
+  if (isError) {
+    return (
+      <ErrorState 
+        message={error instanceof Error ? error.message : "Failed to load evidence engine matrix."} 
+        onRetry={refetch}
+      />
+    );
+  }
+
+  const sources = data?.data?.data?.sources || [];
+  const coverage = data?.data?.data?.coverage || [];
+
+  if (sources.length === 0 && coverage.length === 0) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title="Evidence Engine"
+          description="Multi-source evidence collection and verification dashboard"
+          icon={ShieldCheck}
+        />
+        <EmptyState
+          icon={ShieldCheck}
+          title="No evidence indexed"
+          description="Upload resumes or assessments to start collecting evidence."
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -51,38 +86,37 @@ export default function EvidenceEnginePage() {
           <RefreshCw className="h-3.5 w-3.5" />
           Re-scan All
         </Button>
-        <Button size="sm" className="text-xs h-8 gap-1.5">
-          <Upload className="h-3.5 w-3.5" />
-          Import Evidence
-        </Button>
       </PageHeader>
 
       {/* Source summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        {EVIDENCE_SOURCES.map((source) => (
-          <Card key={source.source} className="border-border">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <source.icon className="h-4 w-4 text-muted-foreground" />
-                <span className="text-xs font-semibold">{source.source}</span>
-              </div>
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-2xs text-muted-foreground">Collected</span>
-                  <span className="text-xs font-mono font-semibold">{source.collected}</span>
+        {sources.map((source) => {
+          const Icon = ICON_MAP[source.source] || ShieldCheck;
+          return (
+            <Card key={source.source} className="border-border">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Icon className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-xs font-semibold">{source.source}</span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-2xs text-evidence-verified">Verified</span>
-                  <span className="text-xs font-mono font-semibold text-evidence-verified">{source.verified}</span>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-2xs text-muted-foreground">Collected</span>
+                    <span className="text-xs font-mono font-semibold">{source.collected}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-2xs text-evidence-verified">Verified</span>
+                    <span className="text-xs font-mono font-semibold text-evidence-verified">{source.verified}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-2xs text-evidence-review">Pending</span>
+                    <span className="text-xs font-mono font-semibold text-evidence-review">{source.pending}</span>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-2xs text-evidence-review">Pending</span>
-                  <span className="text-xs font-mono font-semibold text-evidence-review">{source.pending}</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {/* Evidence coverage matrix */}
@@ -105,9 +139,13 @@ export default function EvidenceEnginePage() {
                 </tr>
               </thead>
               <tbody>
-                {EVIDENCE_COVERAGE.map((row) => (
-                  <tr key={row.candidate} className="border-b border-border/50">
-                    <td className="px-3 py-2.5 text-xs font-semibold">{row.candidate}</td>
+                {coverage.map((row) => (
+                  <tr key={row.candidateId} className="border-b border-border/50">
+                    <td className="px-3 py-2.5 text-xs font-semibold">
+                      <Link href={`/dashboard/candidates/${row.candidateId}`} className="hover:text-primary transition-colors">
+                        {row.candidate}
+                      </Link>
+                    </td>
                     {[row.resume, row.github, row.interview, row.assessment, row.linkedin].map((has, i) => (
                       <td key={i} className="text-center px-3 py-2.5">
                         {has ? (

@@ -347,6 +347,48 @@ export const resumeApi = {
   delete: (id: string) => api.delete<ApiResponse<null>>(`/resume/${id}`),
 
   /**
+   * Run end-to-end placement readiness evaluation pipeline
+   */
+  parse: (resumeId: string, targetRole: string) =>
+    api.post<ApiResponse<{ readiness: any }>>('/resume/parse', { resumeId, targetRole }),
+
+  /**
+   * Get placement readiness score details
+   */
+  getPlacementScore: (candidateId: string) =>
+    api.get<ApiResponse<{ readinessScore: number; categoryScores: any }>>(`/resume/placement-score/${candidateId}`),
+
+  /**
+   * Get skill gap metrics
+   */
+  getSkillGap: (candidateId: string) =>
+    api.get<ApiResponse<{ skillGap: any }>>(`/resume/skill-gap/${candidateId}`),
+
+  /**
+   * Get AI learning recommendations
+   */
+  getRecommendations: (candidateId: string) =>
+    api.get<ApiResponse<{ recommendations: any }>>(`/resume/recommendations/${candidateId}`),
+
+  /**
+   * Get evidence log verification details
+   */
+  getEvidence: (candidateId: string) =>
+    api.get<ApiResponse<{ evidence: any[] }>>(`/resume/evidence/${candidateId}`),
+
+  /**
+   * Get GitHub repositories & commit metrics
+   */
+  getGithubAnalysis: (candidateId: string) =>
+    api.get<ApiResponse<{ githubAnalysis: any }>>(`/resume/github-analysis/${candidateId}`),
+
+  /**
+   * Get placement readiness assessment history
+   */
+  getHistory: (candidateId: string) =>
+    api.get<ApiResponse<{ count: number; history: any[] }>>(`/resume/history/${candidateId}`),
+
+  /**
    * Get AI-powered resume improvement suggestions
    */
   getSuggestions: (data: { resume_text: string; job_description: string; target_role?: string }) =>
@@ -736,6 +778,175 @@ export const jobMatchApi = {
    */
   delete: (id: string) =>
     api.delete<ApiResponse<null>>(`/job-match/${id}`),
+};
+
+// ============================================================================
+// RECRUITER API
+// ============================================================================
+
+export interface CandidateSkill {
+  name: string;
+  confidence: number;
+  sources: string[];
+  level: 'verified' | 'collected' | 'review' | 'risk';
+  reasoning: string;
+}
+
+export interface CandidateHiringDimension {
+  dimension: string;
+  score: number;
+  reasoning: string;
+}
+
+export interface CandidateRiskIndicator {
+  risk: string;
+  severity: 'low' | 'medium' | 'high';
+  detail: string;
+}
+
+export interface CandidateTimelineEvent {
+  date: string;
+  action: string;
+  detail: string;
+  timestamp?: string;
+}
+
+export interface CandidateNote {
+  text: string;
+  author: string;
+  createdAt: string;
+}
+
+export interface Candidate {
+  id: string;
+  _id?: string;
+  name: string;
+  role: string;
+  email: string;
+  phone?: string;
+  location?: string;
+  experience?: string;
+  status: 'New' | 'Screening' | 'Interview' | 'Offer' | 'Hired' | 'Rejected';
+  evidenceScore: number;
+  hiringReadiness: number;
+  authenticityScore: number;
+  summary?: string;
+  skills: CandidateSkill[];
+  hiringDimensions: CandidateHiringDimension[];
+  riskIndicators: CandidateRiskIndicator[];
+  timeline: CandidateTimelineEvent[];
+  sources: {
+    resume: boolean;
+    github: boolean;
+    interview: boolean;
+    assessment: boolean;
+    linkedin: boolean;
+  };
+  notes: CandidateNote[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export const recruiterApi = {
+  getCandidates: (params?: { search?: string; status?: string }) =>
+    api.get<ApiResponse<{ candidates: Candidate[] }>>('/recruiter/candidates', { params }),
+
+  getCandidateById: (id: string) =>
+    api.get<ApiResponse<{ candidate: Candidate }>>(`/recruiter/candidates/${id}`),
+
+  createCandidate: (data: {
+    name: string;
+    role: string;
+    email: string;
+    phone?: string;
+    location?: string;
+    experience?: string;
+    skills?: string[];
+    status?: string;
+  }) => api.post<ApiResponse<{ candidate: Candidate }>>('/recruiter/candidates', data),
+
+  addCandidateNote: (id: string, text: string) =>
+    api.post<ApiResponse<{ candidate: Candidate }>>(`/recruiter/candidates/${id}/notes`, { text }),
+
+  getWorkspacePipeline: () =>
+    api.get<ApiResponse<{
+      pipeline: Array<{
+        title: string;
+        color: string;
+        candidates: Array<{
+          id: string;
+          name: string;
+          role: string;
+          evidence: number;
+          notes: number;
+        }>;
+      }>;
+      recentNotes: Array<{
+        candidateId: string;
+        candidate: string;
+        note: string;
+        time: string;
+        author: string;
+      }>;
+    }>>('/recruiter/workspace'),
+
+  getPlacementStats: () =>
+    api.get<ApiResponse<{
+      batchStats: Array<{
+        batch: string;
+        total: number;
+        placed: number;
+        rate: number;
+      }>;
+      topEmployers: Array<{
+        name: string;
+        hires: number;
+        roles: string;
+      }>;
+    }>>('/recruiter/placement'),
+
+  getHiringAnalytics: () =>
+    api.get<ApiResponse<{
+      metrics: Array<{
+        label: string;
+        value: string;
+        change: string;
+        positive: boolean;
+      }>;
+      funnelData: Array<{
+        stage: string;
+        count: number;
+        percentage: number;
+      }>;
+      skillTrends: Array<{
+        skill: string;
+        demand: number;
+        supply: number;
+      }>;
+    }>>('/recruiter/analytics'),
+
+  getEvidenceSummary: () =>
+    api.get<ApiResponse<{
+      sources: Array<{
+        source: string;
+        collected: number;
+        verified: number;
+        pending: number;
+      }>;
+      coverage: Array<{
+        candidateId: string;
+        candidate: string;
+        resume: boolean;
+        github: boolean;
+        interview: boolean;
+        assessment: boolean;
+        linkedin: boolean;
+        overall: number;
+      }>;
+    }>>('/recruiter/evidence'),
+
+  queryCopilot: (message: string) =>
+    api.post<ApiResponse<{ reply: string }>>('/recruiter/copilot', { message }),
 };
 
 export default api;

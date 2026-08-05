@@ -16,6 +16,13 @@ const {
     getMyResumes,
     getResumeById,
     deleteResume,
+    parseResumePipeline,
+    getPlacementReadinessScore,
+    getSkillGaps,
+    getRecommendations,
+    getEvidenceList,
+    getGithubAnalysis,
+    getReadinessHistory
 } = require('../controllers/resume.controller');
 const { analyzeResumeAgainstJob, getResumeSuggestions } = require('../controllers/analysis.controller');
 
@@ -26,6 +33,17 @@ router.use(protect);
 
 // Upload resume (file key must be 'resume')
 router.post('/upload', upload.single('resume'), uploadResume);
+
+// Analysis pipeline trigger
+router.post('/parse', parseResumePipeline);
+
+// Placement Readiness queries
+router.get('/placement-score/:candidateId', getPlacementReadinessScore);
+router.get('/skill-gap/:candidateId', getSkillGaps);
+router.get('/recommendations/:candidateId', getRecommendations);
+router.get('/evidence/:candidateId', getEvidenceList);
+router.get('/github-analysis/:candidateId', getGithubAnalysis);
+router.get('/history/:candidateId', getReadinessHistory);
 
 // Analysis
 router.post('/:id/analyze', analyzeResumeAgainstJob);

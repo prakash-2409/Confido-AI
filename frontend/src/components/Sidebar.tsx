@@ -35,6 +35,7 @@ const menuGroups = [
     label: 'Command Center',
     items: [
       { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+      { title: 'Placement Readiness', href: '/dashboard/readiness', icon: GraduationCap },
     ],
   },
   {

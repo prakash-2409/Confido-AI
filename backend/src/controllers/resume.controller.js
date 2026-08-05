@@ -13,6 +13,8 @@ const Resume = require('../models/Resume');
 const User = require('../models/User');
 const { parseResume } = require('../utils/resumeParser');
 const { ApiError } = require('../middlewares/errorHandler');
+const { runPlacementReadinessPipeline } = require('../services/readinessPipeline');
+const PlacementReadiness = require('../models/PlacementReadiness');
 
 /**
  * Upload and parse a new resume
@@ -173,9 +175,190 @@ const deleteResume = async (req, res, next) => {
     }
 };
 
+/**
+ * Run end-to-end placement readiness evaluation
+ * POST /api/v1/resume/parse
+ * Body: { resumeId: "...", targetRole: "..." }
+ */
+const parseResumePipeline = async (req, res, next) => {
+    try {
+        const { resumeId, targetRole } = req.body;
+        if (!resumeId || !targetRole) {
+            throw new ApiError(400, 'Please provide resumeId and targetRole');
+        }
+
+        const readinessDoc = await runPlacementReadinessPipeline(req.user._id, resumeId, targetRole);
+
+        res.status(200).json({
+            success: true,
+            message: 'Placement readiness pipeline completed successfully',
+            data: {
+                readiness: readinessDoc
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Get placement readiness score details
+ * GET /api/v1/resume/placement-score/:candidateId
+ */
+const getPlacementReadinessScore = async (req, res, next) => {
+    try {
+        const { candidateId } = req.params;
+        const readiness = await PlacementReadiness.findOne({ user: candidateId })
+            .sort({ createdAt: -1 });
+
+        if (!readiness) {
+            throw new ApiError(404, 'No placement readiness data found for this candidate');
+        }
+
+        res.status(200).json({
+            success: true,
+            data: {
+                readinessScore: readiness.readinessScore,
+                categoryScores: readiness.categoryScores
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Get skill gap metrics
+ * GET /api/v1/resume/skill-gap/:candidateId
+ */
+const getSkillGaps = async (req, res, next) => {
+    try {
+        const { candidateId } = req.params;
+        const readiness = await PlacementReadiness.findOne({ user: candidateId })
+            .sort({ createdAt: -1 });
+
+        if (!readiness) {
+            throw new ApiError(404, 'No placement readiness data found for this candidate');
+        }
+
+        res.status(200).json({
+            success: true,
+            data: {
+                skillGap: readiness.skillGap
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Get AI learning recommendations
+ * GET /api/v1/resume/recommendations/:candidateId
+ */
+const getRecommendations = async (req, res, next) => {
+    try {
+        const { candidateId } = req.params;
+        const readiness = await PlacementReadiness.findOne({ user: candidateId })
+            .sort({ createdAt: -1 });
+
+        if (!readiness) {
+            throw new ApiError(404, 'No placement readiness data found for this candidate');
+        }
+
+        res.status(200).json({
+            success: true,
+            data: {
+                recommendations: readiness.recommendations
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Get evidence log verification details
+ * GET /api/v1/resume/evidence/:candidateId
+ */
+const getEvidenceList = async (req, res, next) => {
+    try {
+        const { candidateId } = req.params;
+        const readiness = await PlacementReadiness.findOne({ user: candidateId })
+            .sort({ createdAt: -1 });
+
+        if (!readiness) {
+            throw new ApiError(404, 'No placement readiness data found for this candidate');
+        }
+
+        res.status(200).json({
+            success: true,
+            data: {
+                evidence: readiness.evidence
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Get GitHub repositories & commit metrics
+ * GET /api/v1/resume/github-analysis/:candidateId
+ */
+const getGithubAnalysis = async (req, res, next) => {
+    try {
+        const { candidateId } = req.params;
+        const readiness = await PlacementReadiness.findOne({ user: candidateId })
+            .sort({ createdAt: -1 });
+
+        if (!readiness) {
+            throw new ApiError(404, 'No placement readiness data found for this candidate');
+        }
+
+        res.status(200).json({
+            success: true,
+            data: {
+                githubAnalysis: readiness.githubAnalysis
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Get placement readiness assessment history
+ * GET /api/v1/resume/history/:candidateId
+ */
+const getReadinessHistory = async (req, res, next) => {
+    try {
+        const { candidateId } = req.params;
+        const history = await PlacementReadiness.find({ user: candidateId })
+            .sort({ createdAt: -1 });
+
+        res.status(200).json({
+            success: true,
+            data: {
+                count: history.length,
+                history
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     uploadResume,
     getMyResumes,
     getResumeById,
     deleteResume,
+    parseResumePipeline,
+    getPlacementReadinessScore,
+    getSkillGaps,
+    getRecommendations,
+    getEvidenceList,
+    getGithubAnalysis,
+    getReadinessHistory
 };

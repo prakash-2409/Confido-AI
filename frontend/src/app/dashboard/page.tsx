@@ -9,6 +9,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { recruiterApi } from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
+import { LoadingState } from '@/components/LoadingState';
+import { ErrorState } from '@/components/ErrorState';
+import { EmptyState } from '@/components/EmptyState';
 import {
   LayoutDashboard,
   Users,
@@ -28,38 +33,21 @@ import {
   ArrowUpRight,
 } from 'lucide-react';
 
-// TODO: Replace with real API data from backend (Epic 2/3)
-const PIPELINE_STAGES = [
-  { label: 'New', count: 12, color: 'bg-evidence-collected/10 text-evidence-collected' },
-  { label: 'Screening', count: 8, color: 'bg-evidence-review/10 text-evidence-review' },
-  { label: 'Interview', count: 5, color: 'bg-primary/10 text-primary' },
-  { label: 'Offer', count: 2, color: 'bg-evidence-verified/10 text-evidence-verified' },
-  { label: 'Hired', count: 1, color: 'bg-evidence-verified/15 text-evidence-verified' },
-];
-
-const RECENT_ACTIVITY = [
-  { id: '1', action: 'Evidence collected', candidate: 'Arjun Mehta', detail: 'GitHub profile verified', time: '2m ago', icon: ShieldCheck },
-  { id: '2', action: 'Interview completed', candidate: 'Priya Sharma', detail: 'Score: 82% — Strong communicator', time: '15m ago', icon: MessageSquare },
-  { id: '3', action: 'Risk flagged', candidate: 'Rahul Verma', detail: 'Timeline inconsistency detected', time: '1h ago', icon: AlertTriangle },
-  { id: '4', action: 'Candidate added', candidate: 'Ananya Rao', detail: 'Resume uploaded, evidence pending', time: '2h ago', icon: UserPlus },
-  { id: '5', action: 'Decision recorded', candidate: 'Vikram Singh', detail: 'Shortlisted for final round', time: '3h ago', icon: CheckCircle2 },
-];
-
-const RISK_CANDIDATES = [
-  { name: 'Rahul Verma', role: 'Backend Engineer', risk: 'Timeline inconsistency', confidence: 35 },
-  { name: 'Kiran Patel', role: 'Data Analyst', risk: 'Weak evidence for SQL claims', confidence: 42 },
-];
-
-const TOP_SKILLS = [
-  { skill: 'Python', candidates: 8, avgConfidence: 78 },
-  { skill: 'React', candidates: 6, avgConfidence: 72 },
-  { skill: 'Node.js', candidates: 5, avgConfidence: 68 },
-  { skill: 'PostgreSQL', candidates: 4, avgConfidence: 81 },
-  { skill: 'Docker', candidates: 3, avgConfidence: 65 },
+const PIPELINE_META = [
+  { label: 'New', color: 'bg-evidence-collected/10 text-evidence-collected border-evidence-collected/20' },
+  { label: 'Screening', color: 'bg-evidence-review/10 text-evidence-review border-evidence-review/20' },
+  { label: 'Interview', color: 'bg-primary/10 text-primary border-primary/20' },
+  { label: 'Offer', color: 'bg-evidence-verified/10 text-evidence-verified border-evidence-verified/20' },
+  { label: 'Hired', color: 'bg-evidence-verified/15 text-evidence-verified border-evidence-verified/25' },
 ];
 
 export default function DashboardPage() {
   const { user } = useAuth();
+
+  const { data, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ['recruiter-candidates'],
+    queryFn: () => recruiterApi.getCandidates()
+  });
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -67,6 +55,104 @@ export default function DashboardPage() {
     if (hour < 18) return 'Good afternoon';
     return 'Good evening';
   };
+
+  if (isLoading) {
+    return <LoadingState message="Loading command center..." />;
+  }
+
+  if (isError) {
+    return (
+      <ErrorState 
+        message={error instanceof Error ? error.message : "Failed to load dashboard pipeline data."} 
+        onRetry={refetch}
+      />
+    );
+  }
+
+  const candidates = data?.data?.data?.candidates || [];
+
+  if (candidates.length === 0) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title={`${getGreeting()}, ${user?.name?.split(' ')[0] || 'there'}`}
+          description="Your hiring intelligence command center"
+          icon={LayoutDashboard}
+        />
+        <EmptyState
+          icon={Users}
+          title="No candidates in pipeline"
+          description="Add your first candidate to start tracking verification intelligence."
+          action={{
+            label: "Add Candidate",
+            href: "/dashboard/candidates"
+          }}
+        />
+      </div>
+    );
+  }
+
+  // Calculate stage counts dynamically
+  const pipelineStages = PIPELINE_META.map(meta => {
+    const count = candidates.filter(c => c.status.toLowerCase() === meta.label.toLowerCase()).length;
+    return {
+      label: meta.label,
+      count,
+      color: meta.color
+    };
+  });
+
+  // Calculate recent activity dynamically from candidate timelines
+  const recentActivities = candidates
+    .flatMap(c => 
+      c.timeline.map((t, idx) => ({
+        id: `${c._id}-${idx}`,
+        candidate: c.name,
+        action: t.action,
+        detail: t.detail,
+        time: t.date,
+        timestamp: t.timestamp ? new Date(t.timestamp).getTime() : 0,
+        icon: t.action.toLowerCase().includes('risk') || t.action.toLowerCase().includes('flag') ? AlertTriangle :
+              t.action.toLowerCase().includes('interview') ? MessageSquare :
+              t.action.toLowerCase().includes('github') || t.action.toLowerCase().includes('verify') ? ShieldCheck :
+              t.action.toLowerCase().includes('add') ? UserPlus : CheckCircle2
+      }))
+    )
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .slice(0, 5);
+
+  // Filter risk indicators dynamically
+  const riskCandidates = candidates
+    .filter(c => c.riskIndicators && c.riskIndicators.length > 0)
+    .map(c => ({
+      id: c._id || c.id,
+      name: c.name,
+      role: c.role,
+      risk: c.riskIndicators[0].risk,
+      confidence: c.evidenceScore
+    }))
+    .slice(0, 3);
+
+  // Compute top skills dynamically
+  const skillMap: Record<string, { count: number; totalConf: number }> = {};
+  candidates.forEach(c => {
+    c.skills.forEach(s => {
+      if (!skillMap[s.name]) {
+        skillMap[s.name] = { count: 0, totalConf: 0 };
+      }
+      skillMap[s.name].count++;
+      skillMap[s.name].totalConf += s.confidence;
+    });
+  });
+
+  const topSkills = Object.entries(skillMap)
+    .map(([skill, stats]) => ({
+      skill,
+      candidates: stats.count,
+      avgConfidence: Math.round(stats.totalConf / stats.count)
+    }))
+    .sort((a, b) => b.candidates - a.candidates)
+    .slice(0, 5);
 
   return (
     <div className="space-y-6">
@@ -92,7 +178,7 @@ export default function DashboardPage() {
 
       {/* Pipeline overview */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        {PIPELINE_STAGES.map((stage) => (
+        {pipelineStages.map((stage) => (
           <Card key={stage.label} className="border-border">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-2">
@@ -116,32 +202,37 @@ export default function DashboardPage() {
                 <Activity className="h-4 w-4 text-muted-foreground" />
                 Recent Activity
               </CardTitle>
-              <Button variant="ghost" size="sm" className="text-xs h-7 text-muted-foreground">
-                View all
-              </Button>
+              <Link href="/dashboard/workspace">
+                <Button variant="ghost" size="sm" className="text-xs h-7 text-muted-foreground">
+                  View all
+                </Button>
+              </Link>
             </div>
           </CardHeader>
           <CardContent className="pt-0">
-            <div className="space-y-0">
-              {RECENT_ACTIVITY.map((activity) => (
-                <div key={activity.id} className="flex items-start gap-3 py-3 border-b border-border/50 last:border-0">
-                  <div className="h-7 w-7 rounded-md bg-muted/50 flex items-center justify-center shrink-0 mt-0.5">
-                    <activity.icon className="h-3.5 w-3.5 text-muted-foreground" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold">{activity.candidate}</span>
-                      <span className="text-2xs text-muted-foreground">·</span>
-                      <span className="text-2xs text-muted-foreground">{activity.time}</span>
+            {recentActivities.length > 0 ? (
+              <div className="space-y-0">
+                {recentActivities.map((activity) => (
+                  <div key={activity.id} className="flex items-start gap-3 py-3 border-b border-border/50 last:border-0">
+                    <div className="h-7 w-7 rounded-md bg-muted/50 flex items-center justify-center shrink-0 mt-0.5">
+                      <activity.icon className="h-3.5 w-3.5 text-muted-foreground" />
                     </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">{activity.action} — {activity.detail}</p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold">{activity.candidate}</span>
+                        <span className="text-2xs text-muted-foreground">·</span>
+                        <span className="text-2xs text-muted-foreground">{activity.time}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">{activity.action} — {activity.detail}</p>
+                    </div>
                   </div>
-                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0 shrink-0">
-                    <Eye className="h-3 w-3 text-muted-foreground" />
-                  </Button>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="py-8 text-center text-xs text-muted-foreground">
+                No recent timeline activity.
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -156,16 +247,22 @@ export default function DashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0 space-y-3">
-              {RISK_CANDIDATES.map((candidate) => (
-                <div key={candidate.name} className="p-3 rounded-lg bg-evidence-risk/5 border border-evidence-risk/10">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs font-semibold">{candidate.name}</span>
-                    <EvidenceBadge level="risk" size="sm" />
+              {riskCandidates.length > 0 ? (
+                riskCandidates.map((candidate) => (
+                  <div key={candidate.id} className="p-3 rounded-lg bg-evidence-risk/5 border border-evidence-risk/10">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-semibold">{candidate.name}</span>
+                      <EvidenceBadge level="risk" size="sm" />
+                    </div>
+                    <p className="text-2xs text-muted-foreground mb-2">{candidate.role} · {candidate.risk}</p>
+                    <ConfidenceScore score={candidate.confidence} size="sm" reasoning="Evidence gaps detected across multiple sources" />
                   </div>
-                  <p className="text-2xs text-muted-foreground mb-2">{candidate.role} · {candidate.risk}</p>
-                  <ConfidenceScore score={candidate.confidence} size="sm" reasoning="Evidence gaps detected across multiple sources" />
+                ))
+              ) : (
+                <div className="py-4 text-center text-xs text-muted-foreground">
+                  No candidate risk indicators flagged.
                 </div>
-              ))}
+              )}
               <Link href="/dashboard/candidates" className="block">
                 <Button variant="ghost" size="sm" className="w-full text-xs h-7 text-muted-foreground">
                   View all candidates
@@ -184,25 +281,31 @@ export default function DashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
-              <div className="space-y-2.5">
-                {TOP_SKILLS.map((skill) => (
-                  <div key={skill.skill} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold w-20">{skill.skill}</span>
-                      <span className="text-2xs text-muted-foreground">{skill.candidates} candidates</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-16 h-1 bg-muted rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-primary/60"
-                          style={{ width: `${skill.avgConfidence}%` }}
-                        />
+              {topSkills.length > 0 ? (
+                <div className="space-y-2.5">
+                  {topSkills.map((skill) => (
+                    <div key={skill.skill} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold w-20 truncate">{skill.skill}</span>
+                        <span className="text-2xs text-muted-foreground">{skill.candidates} candidates</span>
                       </div>
-                      <span className="text-2xs font-mono text-muted-foreground w-8 text-right">{skill.avgConfidence}%</span>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-16 h-1 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-primary/60"
+                            style={{ width: `${skill.avgConfidence}%` }}
+                          />
+                        </div>
+                        <span className="text-2xs font-mono text-muted-foreground w-8 text-right">{skill.avgConfidence}%</span>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-4 text-center text-xs text-muted-foreground">
+                  No skill metrics cataloged yet.
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

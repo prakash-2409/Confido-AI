@@ -30,6 +30,7 @@ const growthRoutes = require('./routes/growth.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
 const coachRoutes = require('./routes/coach.routes');
 const jobMatchRoutes = require('./routes/jobMatch.routes');
+const recruiterRoutes = require('./routes/recruiter.routes');
 
 // Initialize Express app
 const app = express();
@@ -115,6 +116,7 @@ app.use(`${API_BASE}/growth`, growthRoutes);
 app.use(`${API_BASE}/dashboard`, dashboardRoutes);
 app.use(`${API_BASE}/coach`, coachRoutes);
 app.use(`${API_BASE}/job-match`, jobMatchRoutes);
+app.use(`${API_BASE}/recruiter`, recruiterRoutes);
 
 // Welcome route
 app.get('/', (req, res) => {

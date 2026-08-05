@@ -25,6 +25,10 @@ const connectDatabase = async () => {
         console.log(`📊 Database: ${mongoose.connection.name}`);
         console.log(`🌐 Host: ${mongoose.connection.host}`);
 
+        // Seed default recruiter details & candidate pipelines
+        const { seedDatabase } = require('./seeder');
+        await seedDatabase();
+
     } catch (error) {
         console.error('❌ MongoDB connection error:', error.message);
 
@@ -38,6 +42,11 @@ const connectDatabase = async () => {
                 await mongoose.connect(uri, config.mongodb.options);
                 console.log('✅ MongoDB (In-Memory) connected successfully');
                 global.__MONGO_MEMORY_SERVER__ = mongoServer;
+
+                // Seed default recruiter details & candidate pipelines for fallback
+                const { seedDatabase } = require('./seeder');
+                await seedDatabase();
+
                 return;
             } catch (fallbackError) {
                 console.error('❌ Failed to start in-memory MongoDB fallback:', fallbackError.message);

@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { recruiterApi } from '@/lib/api';
 import { Bot, Send, User, Sparkles, ArrowRight } from 'lucide-react';
 
 interface Message {
@@ -58,17 +59,26 @@ export default function CopilotPage() {
     setInputValue('');
     setIsLoading(true);
 
-    // TODO: Replace with real API call to copilot endpoint
-    setTimeout(() => {
-      const response: Message = {
+    try {
+      const response = await recruiterApi.queryCopilot(text);
+      const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: `Based on your query "${text}", I found the following insights:\n\n• **3 candidates** match this criteria in your pipeline\n• **Arjun Mehta** has the strongest evidence score (87%) with verified skills across 4 sources\n• **Vikram Singh** has the highest overall readiness (88%) with all evidence sources verified\n\nWould you like me to generate a detailed comparison or export a shortlist report?`,
+        content: response.data.data.reply,
         timestamp: new Date(),
       };
-      setMessages(prev => [...prev, response]);
+      setMessages(prev => [...prev, assistantMessage]);
+    } catch (error) {
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: 'Error: Failed to communicate with recruiter copilot backend. Please verify your connection.',
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, assistantMessage]);
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   return (

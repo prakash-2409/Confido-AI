@@ -166,3 +166,19 @@ class StructuredResumeParseResponse(BaseModel):
     publications: List[str] = []
     volunteer: List[StructuredExperience] = []
 
+
+# ============================================================
+# Semantic Match Schemas
+# ============================================================
+
+class SemanticMatchRequest(BaseModel):
+    resume_text: str
+    job_description: str
+    skills: List[str] = []
+
+class SemanticMatchResponse(BaseModel):
+    semantic_match_pct: float
+    exact_match_pct: float
+    hidden_skills: List[str] = []
+    alternative_skills: Dict[str, str] = {}
+

@@ -24,6 +24,7 @@ const {
     getGithubAnalysis,
     getReadinessHistory
 } = require('../controllers/resume.controller');
+const { getResumeHistory } = require('../controllers/intelligence.controller');
 const { analyzeResumeAgainstJob, getResumeSuggestions } = require('../controllers/analysis.controller');
 
 const router = express.Router();
@@ -52,6 +53,7 @@ router.post('/:id/analyze', analyzeResumeAgainstJob);
 router.post('/suggestions', getResumeSuggestions);
 
 // CRUD operations
+router.get('/history', getResumeHistory);
 router.get('/', getMyResumes);
 router.get('/:id', getResumeById);
 router.delete('/:id', deleteResume);

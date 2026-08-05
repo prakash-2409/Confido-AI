@@ -12,9 +12,10 @@ from app.models.schemas import (
     ResumeContextRequest,
     ResumeContextResponse,
     QuestionGenerationRequest,
-    QuestionGenerationResponse,
     StructuredResumeParseRequest,
-    StructuredResumeParseResponse
+    StructuredResumeParseResponse,
+    SemanticMatchRequest,
+    SemanticMatchResponse
 )
 from app.models.ats import ats_analyzer
 from app.models.interview_evaluator import interview_evaluator
@@ -27,6 +28,7 @@ from app.models.llm_service import (
 from app.models.resume_context_extractor import extract_resume_context
 from app.models import dynamic_question_generator
 from app.models.resume_parser import parse_resume_structured
+from app.models.semantic_matcher import calculate_semantic_similarity
 import uvicorn
 import logging
 import json
@@ -402,6 +404,27 @@ async def parse_resume_structured_endpoint(request: StructuredResumeParseRequest
         return result
     except Exception as e:
         logger.error(f"Structured resume parsing error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================
+# Semantic Match Endpoint
+# ============================================================
+
+@app.post("/resume/semantic-match", response_model=SemanticMatchResponse)
+async def semantic_match_endpoint(request: SemanticMatchRequest):
+    """
+    Calculate semantic matching coefficients using cosine TF-IDF vector overlays.
+    """
+    try:
+        result = calculate_semantic_similarity(
+            resume_text=request.resume_text,
+            job_description=request.job_description,
+            skills=request.skills
+        )
+        return result
+    except Exception as e:
+        logger.error(f"Semantic match error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

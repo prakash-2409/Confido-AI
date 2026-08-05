@@ -389,6 +389,12 @@ export const resumeApi = {
     api.get<ApiResponse<{ count: number; history: any[] }>>(`/resume/history/${candidateId}`),
 
   /**
+   * Get historical scores timeline for progress graphing
+   */
+  getTimelineHistory: () =>
+    api.get<ApiResponse<{ scores: any[] }>>('/resume/history'),
+
+  /**
    * Get AI-powered resume improvement suggestions
    */
   getSuggestions: (data: { resume_text: string; job_description: string; target_role?: string }) =>

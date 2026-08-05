@@ -342,6 +342,41 @@ const runPlacementReadinessPipeline = async (userId, resumeId, targetRoleTitle) 
 
     await readinessDoc.save();
 
+    // Save snapshot to ResumeVersion
+    const ResumeVersion = require('../models/ResumeVersion');
+    const resumeVerDoc = new ResumeVersion({
+        user: userId,
+        resume: resumeId,
+        version,
+        parsedResume,
+        atsScore: Math.round(technicalSkills * 0.9 + 5), // ATS score heuristic baseline
+        categoryScores,
+        recommendations,
+        githubSnapshot: githubAnalysis,
+        jobMatch: {
+            score: weightedScore,
+            strongSkills,
+            missingSkills,
+            weakSkills
+        }
+    });
+    await resumeVerDoc.save();
+
+    // Save score timestamp to HistoryTimeline
+    const HistoryTimeline = require('../models/HistoryTimeline');
+    let timeline = await HistoryTimeline.findOne({ user: userId });
+    if (!timeline) {
+        timeline = new HistoryTimeline({ user: userId, scores: [] });
+    }
+    timeline.scores.push({
+        readinessScore: weightedScore,
+        atsScore: Math.round(technicalSkills * 0.9 + 5),
+        githubScore: githubAnalysis.githubScore || 60,
+        projectsScore: categoryScores.projects || 70,
+        timestamp: new Date()
+    });
+    await timeline.save();
+
     // 10. Update user profile details
     user.careerReadiness = weightedScore;
     user.targetRole = jobRole.title;
